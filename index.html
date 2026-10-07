@@ -336,7 +336,7 @@ table.tbl{border-collapse:collapse;width:100%;min-width:640px;font-size:.95rem}
 
   <div class="howto">
     <div class="card st"><b>1. 순서 익히기</b><p>영상을 보며 동작 5개의 순서를 외워요. 동작마다 32박자씩, 다 합쳐 160박자예요.</p></div>
-    <div class="card st"><b>2. 천천히 따라 하기</b><p>영상 설정(⚙)에서 0.5배·0.75배로 느리게 해 음악에 맞춰 따라 해요. 걸려도 끝까지 이어서 해 보세요.</p></div>
+    <div class="card st"><b>2. 천천히 따라 하기</b><p>속도를 0.5배·0.75배로 낮춰 음악에 맞춰 따라 해요. 걸려도 끝까지 이어서 해 보세요.</p></div>
     <div class="card st"><b>3. 끝까지 한 번에</b><p>1배속으로 처음부터 끝까지 걸리지 않고 해요. 마지막은 'V'자 앞멈춤으로 마무리!</p></div>
     <div class="card st"><b>4. 심사 받기</b><p>자신 있으면 체육 시간에 선생님께 심사를 받아요. 통과하면 다음 급수로 올라가요.</p></div>
   </div>
@@ -2931,14 +2931,19 @@ function showView(v){
 }
 function clearVideo(box){ box.innerHTML=""; box.dataset.g=""; }
 function pauseAll(){ document.querySelectorAll(".vframe").forEach(b=>{ const v=b.querySelector("video"); if(v){ try{v.pause();}catch(e){} } if(b.querySelector("iframe")) clearVideo(b); }); }
+function driveFrame(g){ return '<iframe src="'+driveEmbed(g)+'" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="'+g+'급 시범 영상"></iframe>'; }
+function syncCtl(){ const drive = !!$("#vid").querySelector("iframe"); $("#vctl-local").hidden = drive; $("#vctl-drive").hidden = !drive; }
+/* 영상은 같은 폴더의 video/g9.mp4 … 를 먼저 틀고, 그 파일이 없을 때만 구글 드라이브 플레이어로 대신 보여줌 */
 function mountVideo(box, g, onvideo){
   if(box.dataset.g===String(g)) return box.querySelector("video");
   box.dataset.g = g;
-  const url = driveEmbed(g);
-  if(url){ box.innerHTML = '<iframe src="'+url+'" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="'+g+'급 시범 영상"></iframe>'; return null; }
   box.innerHTML = '<video playsinline controls preload="metadata"></video>';
   const v = box.querySelector("video"); v.poster = POSTERS[g]||""; v.src = videoSrc(g);
-  v.addEventListener("error",()=>videoFail(g));
+  v.addEventListener("error",()=>{
+    if(box.dataset.g!==String(g)) return;
+    if(driveEmbed(g)){ box.innerHTML = driveFrame(g); if(box.id==="vid") syncCtl(); }
+    else videoFail(g);
+  });
   if(onvideo) onvideo(v);
   v.load(); return v;
 }
@@ -2967,10 +2972,9 @@ function selectGrade(g){
   setVideo(vid, g);
 }
 function setVideo(box, g){
-  const isDrive = !!driveEmbed(g);
   const v = mountVideo(box, g, box===vid ? (el)=>{ el.addEventListener("loadedmetadata",()=>{ el.playbackRate=speed; }); el.addEventListener("play",()=>{ el.playbackRate=speed; }); el.loop=$("#loop").checked; } : null);
   if(v && box===vid) v.playbackRate = speed;
-  if(box===vid){ $("#vctl-local").hidden = isDrive; $("#vctl-drive").hidden = !isDrive; }
+  if(box===vid) syncCtl();
 }
 const vidWarned = {};
 function videoFail(g){ if(vidWarned[g]) return; vidWarned[g]=1; toast("영상을 불러오지 못했어요. video 폴더에 g"+g+".mp4가 있는지 확인해 주세요."); }
