@@ -77,6 +77,7 @@ input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text)
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1 1 160px}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--muted);align-items:center}
 .dot{display:inline-block;width:16px;height:20px;border-radius:50%;vertical-align:-4px;margin-right:6px;background:radial-gradient(circle at 35% 30%,#fff8 0 18%,transparent 20%),#ff4d6d}
+.dot.k{background:radial-gradient(circle at 35% 30%,#fff6 0 18%,transparent 20%),#222;border:1px solid #666}
 .dot.g{width:13px;height:16px;background:radial-gradient(circle at 35% 30%,#fff9 0 18%,transparent 20%),var(--gold)}
 .msg{font-size:14px;color:var(--gold);min-height:1.2em;margin:0;line-height:1.5}
 .big-turn{font-family:var(--display);font-size:clamp(44px,12vw,96px);text-align:center;line-height:1}
@@ -116,7 +117,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   <div class="panel">
     <h1><span class="c">풍선</span> 터트리기 <span class="b">청백전</span></h1>
     <p class="sub">카메라가 몸을 알아봐요. 아래에서 떠오르는 풍선을 <b>손이나 발</b>로 터뜨리면 점수! 청팀과 백팀이 한 명씩 번갈아 도전합니다.</p>
-    <div class="legend"><span><span class="dot"></span>알록달록 풍선 1점</span><span><span class="dot g"></span>금색 풍선 3점 (작고 빨라요)</span></div>
+    <div class="legend"><span><span class="dot"></span>알록달록 풍선 1점</span><span><span class="dot g"></span>금색 풍선 3점 (작고 빨라요)</span><span><span class="dot k"></span>검은 폭탄 풍선 −3점 (피하세요!)</span></div>
     <div class="grid2">
       <label class="f team-in c">청팀 이름<input type="text" id="nameC" maxlength="8" value="청"></label>
       <label class="f team-in b">백팀 이름<input type="text" id="nameB" maxlength="8" value="백"></label>
@@ -127,7 +128,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
       <label class="f">라운드 수 (청→백 한 번씩)
         <select id="selRounds"><option value="1">1라운드</option><option value="2">2라운드</option><option value="3" selected>3라운드</option><option value="4">4라운드</option><option value="5">5라운드</option></select></label>
       <label class="f">난이도
-        <select id="selLevel"><option value="easy">쉬움 (저학년)</option><option value="normal" selected>보통</option><option value="hard">어려움</option></select></label>
+        <select id="selLevel"><option value="easy">쉬움 (폭탄 없음)</option><option value="normal" selected>보통</option><option value="hard">어려움</option></select></label>
       <label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
     </div>
@@ -156,7 +157,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   <div class="panel center">
     <div id="turnTeam" class="big-turn c">청</div>
     <h2 id="turnScore">0점</h2>
-    <div class="stat"><span>풍선 <b id="turnN1">0</b></span><span>금색 풍선 <b id="turnN3">0</b></span></div>
+    <div class="stat"><span>풍선 <b id="turnN1">0</b></span><span>금색 풍선 <b id="turnN3">0</b></span><span>폭탄 <b id="turnNB">0</b></span></div>
     <button class="btn" id="btnNext">다음 차례</button>
   </div>
 </div>
@@ -182,17 +183,17 @@ const cv=$('cv'), ctx=cv.getContext('2d'), vid=$('vid');
 
 /* ---------- 설정 ---------- */
 const LEVEL={
-  easy:  {life:3.6, max:2, gap:.55, gold:.2, size:1.15},
-  normal:{life:2.6, max:2, gap:.45, gold:.25, size:1.0},
-  hard:  {life:1.9, max:3, gap:.35, gold:.3, size:.85}
+  easy:  {life:3.0, max:2, gap:.5, gold:.18, bomb:0,   size:1.0, reach:1.0},
+  normal:{life:2.1, max:3, gap:.4, gold:.18, bomb:.15, size:.82, reach:1.2},
+  hard:  {life:1.6, max:4, gap:.3, gold:.2,  bomb:.22, size:.68, reach:1.4}
 };
 const S={nameC:'청',nameB:'백',time:30,rounds:3,level:'normal',cam:'user',mirror:true,sound:true};
-try{Object.assign(S,JSON.parse(localStorage.getItem('balloonBattle.v1')||'{}'))}catch(e){}
+try{Object.assign(S,JSON.parse(localStorage.getItem('balloonBattle.v2')||'{}'))}catch(e){}
 function loadForm(){$('nameC').value=S.nameC;$('nameB').value=S.nameB;$('selTime').value=S.time;$('selRounds').value=S.rounds;
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
 function readForm(){S.nameC=$('nameC').value.trim()||'청';S.nameB=$('nameB').value.trim()||'백';S.time=+$('selTime').value;
   S.rounds=+$('selRounds').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
-  try{localStorage.setItem('balloonBattle.v1',JSON.stringify(S))}catch(e){}}
+  try{localStorage.setItem('balloonBattle.v2',JSON.stringify(S))}catch(e){}}
 loadForm();
 
 /* ---------- 소리 ---------- */
@@ -212,7 +213,7 @@ function pop(vol=.35){
   src.buffer=buf;f.type='highpass';f.frequency.value=900;g.gain.value=vol;
   src.connect(f).connect(g).connect(AC.destination);src.start(t);
 }
-const sfx={hit1:()=>pop(),hit3:()=>{pop(.4);setTimeout(()=>[1319,1760].forEach((f,i)=>setTimeout(()=>beep(f,.12,'triangle',.1),i*70)),60)},
+const sfx={bomb:()=>{pop(.5);beep(160,.45,'sawtooth',.2,.4)},hit1:()=>pop(),hit3:()=>{pop(.4);setTimeout(()=>[1319,1760].forEach((f,i)=>setTimeout(()=>beep(f,.12,'triangle',.1),i*70)),60)},
   tick:()=>beep(660,.06,'sine',.12),go:()=>beep(1046,.35,'sawtooth',.12),end:()=>{beep(523,.2,'triangle',.18);setTimeout(()=>beep(392,.4,'triangle',.18),180)},
   count:()=>beep(523,.15,'sine',.15),win:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.25,'triangle',.16),i*140))};
 
@@ -270,7 +271,7 @@ function targetRadius(torso,gold){
 }
 function spawn(now,f){
   const L=LEVEL[S.level],b=bodyInfo(f);
-  const gold=Math.random()<L.gold;
+  const rnd=Math.random(), bomb=rnd<L.bomb, gold=!bomb&&rnd<L.bomb+L.gold;
   const torso=b?b.torso:Math.min(W,H)*.25, r=targetRadius(torso,gold);
   const effs=b?EFFECTORS.map(i=>b.P(i)).filter(p=>p.v>.4):[];
   const m=r+12, top=Math.max(m,(parseFloat(getComputedStyle($('hud')).height)||0)+r*.6);
@@ -278,17 +279,17 @@ function spawn(now,f){
     let x,y;
     if(b){ // 팔·다리가 닿는 몸 옆쪽, 무릎 높이쯤에서 떠오르게
       const cx=(b.sc.x+b.hc.x)/2, side=Math.random()<.5?-1:1;
-      x=cx+side*torso*(.55+Math.random()*1.35);
+      x=cx+side*torso*(.7+Math.random()*1.6)*L.reach;
       y=b.hc.y+torso*(.2+Math.random()*.7);
     }else{x=W*(.15+Math.random()*.7);y=H*(.65+Math.random()*.2)}
     if(x<m||x>W-m||y<top+r*3)continue;
     y=Math.min(y,H-r*.6);
     if(G.targets.some(t=>Math.hypot(t.x-x,t.y-y)<t.r+r+20))continue;
-    if(effs.some(p=>Math.hypot(p.x-x,p.y-y)<r*2.6))continue; // 손발 바로 위엔 안 나오게
-    const life=L.life*1.7*(gold?.75:1);
-    const vy=-(torso*2.3)/life*(.85+Math.random()*.3);
-    G.targets.push({x,y,x0:x,r,gold,pts:gold?3:1,born:now,life:life*1000,vy,sway:r*(.25+Math.random()*.35),ph:Math.random()*6.28,
-      col:gold?'#ffc21a':BALLOON_COLORS[Math.floor(Math.random()*BALLOON_COLORS.length)]});
+    if(effs.some(p=>Math.hypot(p.x-x,p.y-y)<r*3))continue; // 손발 바로 위엔 안 나오게
+    const life=L.life*1.7*(gold?.7:1);
+    const vy=-(torso*2.6*L.reach)/life*(.85+Math.random()*.3);
+    G.targets.push({x,y,x0:x,r:bomb?r*1.1:r,gold,bomb,pts:bomb?-3:gold?3:1,born:now,life:life*1000,vy,sway:r*(.25+Math.random()*.35),ph:Math.random()*6.28,
+      col:bomb?'#1c1c22':gold?'#ffc21a':BALLOON_COLORS[Math.floor(Math.random()*BALLOON_COLORS.length)]});
     return;
   }
 }
@@ -297,9 +298,9 @@ function hitTest(now,f){
   const effs=EFFECTORS.map(i=>b.P(i)).filter(p=>p.v>.35);
   for(let i=G.targets.length-1;i>=0;i--){
     const t=G.targets[i];
-    if(effs.some(p=>Math.hypot((p.x-t.x)/1,(p.y-t.y)/1.2)<t.r*1.05+10)){
-      G.cur+=t.pts;t.gold?G.n3++:G.n1++;
-      (t.gold?sfx.hit3:sfx.hit1)();
+    if(effs.some(p=>Math.hypot(p.x-t.x,(p.y-t.y)/1.2)<t.r*.95+4)){
+      G.cur=Math.max(0,G.cur+t.pts);t.bomb?G.nb++:t.gold?G.n3++:G.n1++;
+      (t.bomb?sfx.bomb:t.gold?sfx.hit3:sfx.hit1)();
       burst(t);G.targets.splice(i,1);
       G.spawnAt=Math.min(G.spawnAt,now+250);
     }
@@ -310,7 +311,8 @@ function burst(t){
   for(let i=0;i<18;i++){const a=Math.random()*Math.PI*2,s=3+Math.random()*6;G.fx.push({x:t.x+Math.cos(a)*t.r*.6,y:t.y+Math.sin(a)*t.r*.7,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col,kind:'p',rot:Math.random()*6,sz:3+Math.random()*t.r*.18})}
   if(t.gold)for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2,s=2+Math.random()*4;G.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col:'#fff6c2',kind:'p',rot:0,sz:3})}
   G.fx.push({x:t.x,y:t.y,life:1,kind:'ring',r:t.r,col});
-  G.fx.push({x:t.x+t.r*.8,y:t.y-t.r*.5,vy:-1.4,life:1,txt:'+'+t.pts,col:t.gold?'#ffb81c':'#fff',kind:'t',size:Math.max(26,t.r*.9)});
+  G.fx.push({x:t.x+t.r*.8,y:t.y-t.r*.5,vy:-1.4,life:1,txt:t.pts>0?'+'+t.pts:'−'+(-t.pts),col:t.bomb?'#ff3b4e':t.gold?'#ffb81c':'#fff',kind:'t',size:Math.max(30,t.r*(t.bomb?1.2:.9))});
+  if(t.bomb)G.flash=performance.now();
 }
 
 /* ---------- 그리기 ---------- */
@@ -350,7 +352,7 @@ function drawTargets(now){
     ctx.fillStyle=t.col;ctx.beginPath();ctx.moveTo(bx,by-2);ctx.lineTo(bx-r*.13,by+r*.17);ctx.lineTo(bx+r*.13,by+r*.17);ctx.closePath();ctx.fill();
     // 몸통
     const g=ctx.createRadialGradient(t.x-r*.35,t.y-ry*.4,r*.1,t.x,t.y,ry*1.1);
-    g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.18,t.col);g.addColorStop(1,shade(t.col,-.35));
+    g.addColorStop(0,t.bomb?'rgba(255,255,255,.5)':'rgba(255,255,255,.95)');g.addColorStop(.18,t.col);g.addColorStop(1,shade(t.col,-.35));
     ctx.fillStyle=g;ctx.beginPath();
     ctx.moveTo(t.x,t.y+ry);
     ctx.bezierCurveTo(t.x-r*1.25,t.y+ry*.55,t.x-r*1.05,t.y-ry,t.x,t.y-ry);
@@ -359,7 +361,7 @@ function drawTargets(now){
     ctx.lineWidth=2;ctx.strokeStyle='rgba(0,0,0,.25)';ctx.stroke();
     // 점수
     ctx.fillStyle='#fff';ctx.font=`${Math.round(r*.7)}px 'Black Han Sans',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.35)';ctx.strokeText(t.pts,t.x,t.y+ry*.05);ctx.fillText(t.pts,t.x,t.y+ry*.05);
+    ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.35)';const lab=t.bomb?'💣':t.pts;if(!t.bomb)ctx.strokeText(lab,t.x,t.y+ry*.05);ctx.fillText(lab,t.x,t.y+ry*.05);
     if(t.gold){const sp=(now/120)%6.28;ctx.fillStyle='#fffbe0';for(let i=0;i<3;i++){const a=sp+i*2.09;ctx.beginPath();ctx.arc(t.x+Math.cos(a)*r*1.35,t.y+Math.sin(a)*ry*1.2,3,0,6.28);ctx.fill()}}
     ctx.restore();
   }
@@ -389,7 +391,7 @@ function frame(now){
   drawVideo(f);
   if(G.phase==='play'){
     G.left=Math.max(0,S.time-(now-G.t0)/1000);
-    // 시간 지난 과녁 지우기
+    // 시간 지난 풍선 지우기
     const dt=Math.min(.05,(now-(G.lastNow||now))/1000);
     for(const t of G.targets){t.y+=t.vy*dt;t.x=t.x0+Math.sin((now-t.born)/600+t.ph)*t.sway}
     G.targets=G.targets.filter(t=>now-t.born<t.life&&t.y+t.r*1.2>0);
@@ -406,6 +408,7 @@ function frame(now){
   drawTargets(now);
   drawSkeleton(f);
   drawFx();
+  if(G.flash&&now-G.flash<250){ctx.fillStyle=`rgba(255,40,60,${.35*(1-(now-G.flash)/250)})`;ctx.fillRect(0,0,W,H)}
   if(G.phase!=='setup')updateHud();
   requestAnimationFrame(frame);
 }
@@ -414,7 +417,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';G.cur=0;G.n1=0;G.n3=0;G.targets=[];G.left=S.time;
+  G.phase='ready';G.cur=0;G.n1=0;G.n3=0;G.nb=0;G.targets=[];G.left=S.time;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드`;
   const rt=$('readyTeam');rt.textContent=`${teamName(G.team)} 차례`;rt.className='big-turn '+G.team;
@@ -437,7 +440,7 @@ function endTurn(){
   const ri=G.round-1;G.scores[G.team][ri]=G.cur;G.stats[G.team][ri]={n1:G.n1,n3:G.n3};
   allHidden();show('ovTurn',true);
   const tt=$('turnTeam');tt.textContent=teamName(G.team);tt.className='big-turn '+G.team;
-  $('turnScore').textContent=`${G.cur}점`;$('turnN1').textContent=G.n1;$('turnN3').textContent=G.n3;
+  $('turnScore').textContent=`${G.cur}점`;$('turnN1').textContent=G.n1;$('turnN3').textContent=G.n3;$('turnNB').textContent=G.nb;
   const last=G.team==='b'&&G.round>=S.rounds;
   $('btnNext').textContent=last?'최종 결과 보기':`${teamName(G.team==='c'?'b':'c')} 차례로`;
   setTimeout(()=>$('btnNext').focus(),50);
