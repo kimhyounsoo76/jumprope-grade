@@ -137,8 +137,8 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <div class="grid2">
       <label class="f">한 사람 시간
         <select id="selTime"><option value="30">30초</option><option value="45" selected>45초</option><option value="60">60초</option></select></label>
-      <label class="f">라운드 수 (모둠마다 한 번씩)
-        <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option></select></label>
+      <label class="f">라운드 수 (모둠마다 한 사람씩)
+        <select id="selRounds"><option value="auto">모둠 인원수만큼</option><option value="1">1라운드</option><option value="2" >2라운드</option><option value="3">3라운드</option></select></label>
       <label class="f">난이도
         <select id="selLevel"><option value="easy">쉬움 (느린 공)</option><option value="normal" selected>보통</option><option value="hard">어려움 (빠르고 많은 공)</option></select></label>
     </div>
@@ -216,6 +216,10 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -223,12 +227,16 @@ const PE=(()=>{
     {n:'녹',c:'#22a35a'},{n:'보라',c:'#8b5cf6'},{n:'주황',c:'#ff8a1f'},{n:'하늘',c:'#1fb6ff'}];
   function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
   function write(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
-  function defaults(n){return PALETTE.slice(0,n).map(p=>({name:p.n,color:p.c}))}
+  function defaults(n){return PALETTE.slice(0,n).map(p=>({name:p.n,color:p.c,n:4}))}
   let data=read();
   if(!data||!Array.isArray(data.teams)||data.teams.length<2)data={teams:defaults(2),history:[]};
   const teams=data.teams;
   function lum(hex){const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255;return .2126*r+.7152*g+.0722*b}
   const light=i=>lum(color(i))>.6;
+  function members(i){return Math.max(1,parseInt(teams[i]&&teams[i].n)||4)}
+  function maxMembers(){return Math.max(...teams.map((_,i)=>members(i)))}
+  // 이번 라운드에 뛰는 사람 이름표: '3번째 선수' / 인원보다 많으면 '한 번 더'
+  function playerLabel(i,round){const n=members(i);return round<=n?`${round}번째 선수`:`한 번 더 (${round-n}번째)`}
   function name(i){return teams[i]?teams[i].name:(i+1)+'모둠'}
   function color(i){return teams[i]?teams[i].color:PALETTE[i%PALETTE.length].c}
   function ink(i){return light(i)?'#2a2f3d':'#ffffff'}
@@ -325,7 +333,7 @@ const PE=(()=>{
     a.style.textAlign='center';a.style.textDecoration='none';a.style.display='flex';a.style.alignItems='center';a.style.justifyContent='center';
     rowEl.insertBefore(a,rowEl.firstChild);
   }
-  return{teams,count:()=>teams.length,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
+  return{teams,count:()=>teams.length,members,maxMembers,playerLabel,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
 })();
 </script>
 <script>
@@ -344,9 +352,9 @@ const LEVEL={
 const LIVES=3;
 const S={time:45,rounds:2,level:'normal',cam:'user',mirror:true,sound:true};
 try{Object.assign(S,JSON.parse(localStorage.getItem('dodge.v1')||'{}'))}catch(e){}
-function loadForm(){$('selTime').value=S.time;$('selRounds').value=S.rounds;
+function loadForm(){$('selTime').value=S.time;$('selRounds').value=S.roundsSel||'auto';
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
-function readForm(){S.time=+$('selTime').value;S.rounds=+$('selRounds').value;
+function readForm(){S.time=+$('selTime').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
   S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
   try{localStorage.setItem('dodge.v1',JSON.stringify(S))}catch(e){}}
 loadForm();
@@ -611,7 +619,7 @@ function goReady(){
   G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map(r=>[r?r.dodged:null,i])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 피함',true)}G.headY=null;G.floorY=null;G.lives=LIVES;G.dodged={high:0,low:0,front:0};G.hitsTaken=0;G.balls=[];G.warns=[];G.left=S.time;G.inv=0;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);coach('');
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · ${S.time}초`;
-  PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} 차례`);
+  PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
   PE.btn($('btnGo'),G.team);$('btnGo').focus();
 }
 function countdown(){

@@ -141,8 +141,8 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <div class="grid2">
       <label class="f">한 사람 화살 수
         <select id="selArrows"><option value="3">3발</option><option value="5" selected>5발</option><option value="6">6발 (올림픽 1엔드)</option></select></label>
-      <label class="f">라운드 수 (모둠마다 한 번씩)
-        <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option></select></label>
+      <label class="f">라운드 수 (모둠마다 한 사람씩)
+        <select id="selRounds"><option value="auto">모둠 인원수만큼</option><option value="1">1라운드</option><option value="2" >2라운드</option><option value="3">3라운드</option></select></label>
       <label class="f">활 잡는 손
         <select id="selBow"><option value="L" selected>왼손 (오른손잡이)</option><option value="R">오른손 (왼손잡이)</option></select></label>
       <label class="f">난이도
@@ -221,6 +221,10 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -228,12 +232,16 @@ const PE=(()=>{
     {n:'녹',c:'#22a35a'},{n:'보라',c:'#8b5cf6'},{n:'주황',c:'#ff8a1f'},{n:'하늘',c:'#1fb6ff'}];
   function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
   function write(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
-  function defaults(n){return PALETTE.slice(0,n).map(p=>({name:p.n,color:p.c}))}
+  function defaults(n){return PALETTE.slice(0,n).map(p=>({name:p.n,color:p.c,n:4}))}
   let data=read();
   if(!data||!Array.isArray(data.teams)||data.teams.length<2)data={teams:defaults(2),history:[]};
   const teams=data.teams;
   function lum(hex){const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255;return .2126*r+.7152*g+.0722*b}
   const light=i=>lum(color(i))>.6;
+  function members(i){return Math.max(1,parseInt(teams[i]&&teams[i].n)||4)}
+  function maxMembers(){return Math.max(...teams.map((_,i)=>members(i)))}
+  // 이번 라운드에 뛰는 사람 이름표: '3번째 선수' / 인원보다 많으면 '한 번 더'
+  function playerLabel(i,round){const n=members(i);return round<=n?`${round}번째 선수`:`한 번 더 (${round-n}번째)`}
   function name(i){return teams[i]?teams[i].name:(i+1)+'모둠'}
   function color(i){return teams[i]?teams[i].color:PALETTE[i%PALETTE.length].c}
   function ink(i){return light(i)?'#2a2f3d':'#ffffff'}
@@ -330,7 +338,7 @@ const PE=(()=>{
     a.style.textAlign='center';a.style.textDecoration='none';a.style.display='flex';a.style.alignItems='center';a.style.justifyContent='center';
     rowEl.insertBefore(a,rowEl.firstChild);
   }
-  return{teams,count:()=>teams.length,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
+  return{teams,count:()=>teams.length,members,maxMembers,playerLabel,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
 })();
 </script>
 <script>
@@ -349,9 +357,9 @@ const LEVEL={
 const ARROW_TIME=15; // 한 발에 주어진 시간(초)
 const S={arrows:5,rounds:2,bow:'L',level:'normal',cam:'user',mirror:true,sound:true};
 try{Object.assign(S,JSON.parse(localStorage.getItem('archeryBattle.v1')||'{}'))}catch(e){}
-function loadForm(){$('selArrows').value=S.arrows;$('selRounds').value=S.rounds;$('selBow').value=S.bow;
+function loadForm(){$('selArrows').value=S.arrows;$('selRounds').value=S.roundsSel||'auto';$('selBow').value=S.bow;
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
-function readForm(){S.arrows=+$('selArrows').value;S.rounds=+$('selRounds').value;
+function readForm(){S.arrows=+$('selArrows').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
   S.bow=$('selBow').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
   try{localStorage.setItem('archeryBattle.v1',JSON.stringify(S))}catch(e){}}
 loadForm();
@@ -664,7 +672,7 @@ function goReady(){
   placeTarget(fit());newWind();
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · 화살 ${S.arrows}발`;
-  PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} 차례`);
+  PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
   PE.btn($('btnGo'),G.team);$('btnGo').focus();
 }
 function countdown(){

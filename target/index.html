@@ -35,10 +35,14 @@ section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 .step button{width:56px;height:56px;border:0;background:var(--bg);color:var(--ink);font-size:28px;cursor:pointer}
 .step button:disabled{opacity:.35;cursor:default}
 .step output{min-width:84px;text-align:center;font-family:var(--display);font-size:32px;font-variant-numeric:tabular-nums}
-.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sum{font-size:13px;color:var(--muted);margin:10px 0 0;line-height:1.6}
 .team{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 8px;background:var(--bg);min-width:0}
 .team input[type=color]{width:34px;height:34px;border:0;padding:0;background:none;cursor:pointer;flex:none}
 .team input[type=text]{flex:1;min-width:0;font:inherit;font-size:17px;border:0;background:transparent;color:var(--ink);padding:6px 2px}
+.team .n{display:flex;align-items:center;gap:2px;font-size:13px;color:var(--muted);flex:none}
+.team input[type=number]{width:44px;font:inherit;font-size:16px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);padding:5px 2px;-moz-appearance:textfield}
+.team input[type=number]::-webkit-inner-spin-button{appearance:none}
 .camtest{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;background:var(--paper);border:1px dashed var(--field);border-radius:16px;padding:12px 14px;margin-bottom:12px}
 .camtest .ic{width:44px;height:44px;border-radius:12px;background:var(--field);display:grid;place-items:center;font-size:22px;flex:none}
 .camtest b{font-family:var(--display);font-weight:400;font-size:19px;display:block}
@@ -88,13 +92,14 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 </div><div class="lanes" id="lanes" aria-hidden="true"></div></div>
 <main>
   <section>
-    <h2>① 참가 모둠 <small>이름과 색을 눌러 바꿀 수 있어요</small></h2>
+    <h2>① 참가 모둠 <small>이름·색·인원수를 눌러 바꿀 수 있어요</small></h2>
     <div class="card">
       <div class="count">
         <span>모둠 수</span>
         <div class="step" title="2~8모둠"><button id="minus" aria-label="모둠 하나 빼기">−</button><output id="cnt">2</output><button id="plus" aria-label="모둠 하나 더하기">+</button></div>
       </div>
       <div class="teams" id="teams"></div>
+      <p class="sum" id="sum"></p>
       <div class="confirm" id="cntConfirm" hidden>
         <span>모둠 수를 바꾸면 지금까지의 종합 점수가 지워져요.</span>
         <button class="btn danger" id="cntYes">바꾸고 점수 지우기</button><button class="btn" id="cntNo">그대로 두기</button>
@@ -138,7 +143,7 @@ const GAMES=[ // col: 게임 고유색(게임 화면의 주색), tag: 운동 요
 function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
 let D=read();
-if(!D||!Array.isArray(D.teams)||D.teams.length<2)D={teams:PALETTE.slice(0,2).map(p=>({name:p.n,color:p.c})),history:[]};
+if(!D||!Array.isArray(D.teams)||D.teams.length<2)D={teams:PALETTE.slice(0,2).map(p=>({name:p.n,color:p.c,n:4})),history:[]};
 if(!Array.isArray(D.history))D.history=[];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -146,12 +151,19 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 function renderTeams(){
   $('cnt').textContent=D.teams.length;
   $('minus').disabled=D.teams.length<=2;$('plus').disabled=D.teams.length>=8;
-  $('teams').innerHTML=D.teams.map((t,i)=>`<label class="team"><input type="color" id="tc${i}" value="${t.color}" aria-label="${i+1}번째 모둠 색"><input type="text" id="tn${i}" maxlength="8" value="${esc(t.name)}" aria-label="${i+1}번째 모둠 이름"></label>`).join('');
+  $('teams').innerHTML=D.teams.map((t,i)=>`<label class="team"><input type="color" id="tc${i}" value="${t.color}" aria-label="${i+1}번째 모둠 색"><input type="text" id="tn${i}" maxlength="8" value="${esc(t.name)}" aria-label="${i+1}번째 모둠 이름"><span class="n"><input type="number" id="tm${i}" min="1" max="20" value="${t.n||4}" aria-label="${i+1}번째 모둠 인원">명</span></label>`).join('');
   D.teams.forEach((t,i)=>{
     $('tn'+i).addEventListener('input',e=>{t.name=e.target.value.trim()||PALETTE[i].n;write();renderBoard();renderLanes()});
     $('tc'+i).addEventListener('input',e=>{t.color=e.target.value;write();renderBoard();renderLanes()});
+    $('tm'+i).addEventListener('input',e=>{const v=Math.max(1,Math.min(20,parseInt(e.target.value)||1));t.n=v;write();renderSum()});
+    $('tm'+i).addEventListener('blur',e=>{e.target.value=t.n||4});
   });
+  renderSum();
   renderLanes();
+}
+function renderSum(){
+  const ns=D.teams.map(t=>t.n||4),tot=ns.reduce((a,b)=>a+b,0),mx=Math.max(...ns),mn=Math.min(...ns);
+  $('sum').innerHTML=`모두 <b>${tot}명</b>. 게임마다 라운드가 <b>${mx}번</b> 돌아서 한 사람씩 다 뛰어요.`+(mx!==mn?` 인원이 적은 모둠은 <b>한 번 더 뛸 사람</b>을 정해 두세요.`:'');
 }
 function renderLanes(){$('lanes').innerHTML=D.teams.map(t=>`<i style="background:${t.color}"></i>`).join('')}
 let pendingCount=null;
@@ -161,7 +173,7 @@ function setCount(n){
   applyCount(n);
 }
 function applyCount(n){
-  while(D.teams.length<n){const p=PALETTE[D.teams.length];D.teams.push({name:p.n,color:p.c})}
+  while(D.teams.length<n){const p=PALETTE[D.teams.length];D.teams.push({name:p.n,color:p.c,n:4})}
   D.teams.length=n;D.history=[];write();renderTeams();renderBoard();renderGames();
 }
 $('minus').onclick=()=>setCount(D.teams.length-1);
