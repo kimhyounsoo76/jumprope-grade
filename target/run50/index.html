@@ -22,8 +22,13 @@
 html,body{height:100%;margin:0}
 body{background:var(--ink);color:var(--text);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 #stage{position:fixed;inset:0;background:#000}
-#cv{width:100%;height:100%;display:block}
+#cv{width:100%;height:100%;display:block;position:relative;z-index:0}
 video{display:none}
+#stage::before,#stage::after{content:'';position:absolute;left:0;right:0;pointer-events:none;z-index:1}
+#stage::before{top:0;height:min(26vh,190px);background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0))}
+#stage::after{bottom:0;height:min(16vh,120px);background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.5))}
+#stage{overflow:hidden}
+#roundTag{line-height:1.45}
 
 #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:center;pointer-events:none;padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
 .hud-box{display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -179,6 +184,14 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -226,13 +239,16 @@ const PE=(()=>{
   const T={best:null,team:null,fmt:v=>v,led:false,el:null,higher:true};
   function setTarget(best,team,fmt,higher=true){
     T.best=best;T.team=team;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
-    if(!T.el){T.el=document.createElement('div');T.el.id='beat';T.el.style.cssText='font-size:clamp(13px,2.6vmin,20px);padding:.2em .8em;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);font-variant-numeric:tabular-nums;white-space:nowrap';
-      const box=document.querySelector('#hud .hud-box')||document.getElementById('hud');if(box)box.appendChild(T.el)}
+    if(!T.el){T.el=document.createElement('div');T.el.id='beat';T.el.style.cssText='position:fixed;z-index:5;left:max(16px,env(safe-area-inset-left,0px));font-size:clamp(12px,2.4vmin,18px);padding:.25em .8em;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none';
+      document.body.appendChild(T.el)}
+    place();
     T.el.hidden=false;
     T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록 ${name(team)} ${T.fmt(best)}`;
     T.el.style.background='rgba(0,0,0,.55)';
   }
+  function place(){const r=document.getElementById('roundTag');if(!T.el||!r)return;T.el.style.top=(r.hidden?12:r.getBoundingClientRect().bottom+6)+'px'}
   function beat(cur){
+    place();
     if(!T.el||T.el.hidden)return false;
     if(T.best==null){return false}
     const ahead=T.higher?cur>T.best:cur<T.best;

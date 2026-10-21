@@ -45,11 +45,12 @@ section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 @media (min-width:720px){.game{padding:14px 16px;gap:6px}}
 .game:hover{transform:translateY(-2px);border-color:var(--field)}
 .game:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.game .em{font-size:30px;line-height:1}
+.game .em{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:24px;line-height:1;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18)}
 .game b{font-family:var(--display);font-weight:400;font-size:19px;line-height:1.15}
 .game span{font-size:13px;color:var(--muted);line-height:1.4}
-@media (min-width:720px){.game .em{font-size:34px}.game b{font-size:22px}.game span{font-size:14px}}
-.game .tag{position:absolute;right:10px;top:10px;font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--muted)}
+@media (min-width:720px){.game .em{width:52px;height:52px;font-size:28px;border-radius:14px}.game b{font-size:22px}.game span{font-size:14px}}
+.game .tag{position:absolute;right:10px;top:10px;font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted);letter-spacing:.02em}
+.game{border-left:4px solid var(--accent,var(--line))}
 .game .played{color:var(--field);font-weight:700}
 .tbl{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:420px}
@@ -96,7 +97,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
   </section>
 
   <section>
-    <h2>② 게임 고르기 <small>기기는 가로로 2~3m 앞에 세워요</small></h2>
+    <h2>② 게임 고르기 <small>꼬리표는 그 게임이 기르는 운동 요소예요</small></h2>
     <div class="games" id="games"></div>
   </section>
 
@@ -116,16 +117,16 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 (()=>{
 const KEY='pegames.v1';
 const PALETTE=[{n:'청',c:'#2f6bff'},{n:'백',c:'#f4f6fb'},{n:'홍',c:'#e8383d'},{n:'황',c:'#f5b700'},{n:'녹',c:'#22a35a'},{n:'보라',c:'#8b5cf6'},{n:'주황',c:'#ff8a1f'},{n:'하늘',c:'#1fb6ff'}];
-const GAMES=[
-  {id:'balloon',path:'balloon/',em:'🎈',name:'풍선 터트리기',desc:'떠오르는 풍선을 손발로 펑! 폭탄 풍선은 피해요',tag:'30초'},
-  {id:'classic',path:'classic/',em:'🎯',name:'과녁 터치',desc:'몸 둘레에 뜨는 과녁을 손발로 터치',tag:'30초'},
-  {id:'climb',path:'climb/',em:'🧗',name:'암벽 오르기',desc:'왼손·오른손·왼발·오른발 홀드를 잡고 정상까지',tag:'정상 20m'},
-  {id:'archery',path:'archery/',em:'🏹',name:'양궁',desc:'팔을 뻗어 겨누고, 시위를 당겼다 놓아요',tag:'5발'},
-  {id:'freethrow',path:'freethrow/',em:'🏀',name:'자유투',desc:'무릎을 굽혔다 펴며 두 팔을 위로 쭉!',tag:'5개'},
-  {id:'run50',path:'run50/',em:'🏃',name:'50m 달리기',desc:'제자리에서 무릎 높이 뛰기, 부정 출발 조심',tag:'기록'},
-  {id:'keeper',path:'keeper/',em:'🧤',name:'골키퍼',desc:'날아오는 축구공을 손·발·몸으로 막아요',tag:'승부차기'},
-  {id:'dodge',path:'dodge/',em:'🔴',name:'피구 피하기',desc:'숙이고, 뛰고, 비켜서 공을 피해요',tag:'목숨 3'},
-  {id:'wall',path:'wall/',em:'🧱',name:'벽 통과하기',desc:'다가오는 벽의 구멍 모양대로 자세 잡기',tag:'12가지 자세'}
+const GAMES=[ // col: 게임 고유색(게임 화면의 주색), tag: 운동 요소
+  {id:'balloon',path:'balloon/',em:'🎈',col:'#ff4d6d',name:'풍선 터트리기',desc:'떠오르는 풍선을 손발로 펑! 폭탄 풍선은 피해요',tag:'손발 터치'},
+  {id:'classic',path:'classic/',em:'🎯',col:'#1f5bff',name:'과녁 터치',desc:'몸 둘레에 뜨는 과녁을 손발로 터치',tag:'순발력'},
+  {id:'climb',path:'climb/',em:'🧗',col:'#b9692a',name:'암벽 오르기',desc:'왼손·오른손·왼발·오른발 홀드를 잡고 정상까지',tag:'팔다리 뻗기'},
+  {id:'archery',path:'archery/',em:'🏹',col:'#2e9b4f',name:'양궁',desc:'팔을 뻗어 겨누고, 시위를 당겼다 놓아요',tag:'겨누기·집중'},
+  {id:'freethrow',path:'freethrow/',em:'🏀',col:'#f07a22',name:'자유투',desc:'무릎을 굽혔다 펴며 두 팔을 위로 쭉!',tag:'점프·팔 뻗기'},
+  {id:'run50',path:'run50/',em:'🏃',col:'#c4472e',name:'50m 달리기',desc:'제자리에서 무릎 높이 뛰기, 부정 출발 조심',tag:'제자리 달리기'},
+  {id:'keeper',path:'keeper/',em:'🧤',col:'#1d6b35',name:'골키퍼',desc:'날아오는 축구공을 손·발·몸으로 막아요',tag:'막기·반응'},
+  {id:'dodge',path:'dodge/',em:'🔴',col:'#e2372f',name:'피구 피하기',desc:'숙이고, 뛰고, 비켜서 공을 피해요',tag:'숙이기·점프'},
+  {id:'wall',path:'wall/',em:'🧱',col:'#d9822b',name:'벽 통과하기',desc:'다가오는 벽의 구멍 모양대로 자세 잡기',tag:'자세·균형'}
 ];
 function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
@@ -163,7 +164,7 @@ $('cntNo').onclick=()=>{$('cntConfirm').hidden=true;pendingCount=null};
 
 function renderGames(){
   const played=id=>D.history.filter(h=>h.game===id).length;
-  $('games').innerHTML=GAMES.map(g=>`<a class="game" href="${g.path}"><span class="tag">${g.tag}</span><div class="em">${g.em}</div><b>${g.name}</b><span>${g.desc}</span>${played(g.id)?`<span class="played">✔ ${played(g.id)}번 했어요</span>`:''}</a>`).join('');
+  $('games').innerHTML=GAMES.map(g=>`<a class="game" href="${g.path}" style="--accent:${g.col}"><span class="tag">${g.tag}</span><div class="em" style="background:${g.col}">${g.em}</div><b>${g.name}</b><span>${g.desc}</span>${played(g.id)?`<span class="played">✔ ${played(g.id)}번 했어요</span>`:''}</a>`).join('');
 }
 function renderBoard(){
   const n=D.teams.length;
