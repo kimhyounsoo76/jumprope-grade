@@ -40,30 +40,36 @@ video{display:none}
 .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(19,13,7,.6);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
 .icon-btn:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
-.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(14,9,4,.6);
-  padding-block:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px);
+.overlay{position:fixed;inset:0;display:grid;place-items:center;align-content:start;background:rgba(14,9,4,.6);
+  padding-block:calc(env(safe-area-inset-top,0px) + 62px) calc(env(safe-area-inset-bottom,0px) + 16px);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.overlay.clear{align-content:center}
 .overlay.clear{background:transparent;pointer-events:none}
-.panel{width:100%;max-width:540px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
-  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:16px;pointer-events:auto;
+.panel{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:13px;pointer-events:auto;
   background-image:linear-gradient(rgba(255,255,255,.03) 2px,transparent 2px),linear-gradient(90deg,rgba(255,255,255,.03) 2px,transparent 2px);background-size:56px 28px,56px 56px}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,7.5vw,50px);margin:0;line-height:1.05}
 h1 .o{color:#ffa45c}
 h2{font-family:var(--display);font-weight:400;font-size:clamp(26px,6vw,40px);margin:0;text-align:center;text-wrap:balance}
-.sub{color:var(--muted);margin:0;line-height:1.6;font-size:15px}
+.sub{color:var(--muted);margin:0;line-height:1.5;font-size:14px}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-@media (max-width:420px){.steps{grid-template-columns:1fr}}
-.steps div{background:var(--panel-2);border-radius:12px;padding:10px;font-size:14px;line-height:1.45;min-width:0}
-.steps b{display:block;font-family:var(--display);font-weight:400;font-size:18px;color:#ffa45c;margin-bottom:2px}
+.steps div{background:var(--panel-2);border-radius:12px;padding:8px 9px;font-size:12.5px;line-height:1.4;min-width:0}
+@media (min-width:600px){.steps div{padding:10px;font-size:14px}}
+.steps b{display:block;font-family:var(--display);font-weight:400;font-size:16px;color:#ffa45c;margin-bottom:2px}
 .pts{display:flex;gap:8px;flex-wrap:wrap;font-size:14px}
 .pts span{background:var(--panel-2);border-radius:999px;padding:5px 12px}
 .pts b{color:var(--gold)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:420px){.grid2{grid-template-columns:1fr}}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);min-width:0}
 input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
 .team-in.c input{border-color:var(--chung);box-shadow:inset 4px 0 0 var(--chung)}
 .team-in.b input{border-color:#c9cfdf;box-shadow:inset 4px 0 0 #fff}
+.dev summary{cursor:pointer;font-size:14px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px;min-height:40px}
+.dev summary::before{content:'▸';font-size:12px}
+.dev[open] summary::before{content:'▾'}
+.dev summary span{opacity:.7;font-size:12px}
+.devin{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;padding:6px 0 2px}
+.devin .check{grid-column:1/-1}
 .check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer}
 .check input{width:22px;height:22px;accent-color:var(--brick)}
 .btn{font-family:var(--display);font-size:clamp(20px,4.6vw,28px);border:0;border-radius:14px;padding:14px 18px;cursor:pointer;background:var(--brick);color:#fff;box-shadow:0 4px 0 var(--brick-deep);min-height:56px}
@@ -90,7 +96,7 @@ td.c{color:#8fb0ff;font-weight:700} td.b{color:#fff;font-weight:700}
 tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
 .winner{font-family:var(--display);font-size:clamp(40px,10vw,72px);text-align:center;line-height:1.05}
 .winner.c{color:#5f8bff}.winner.b{color:#fff}.winner.d{color:var(--gold)}
-.note{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
 .credit{font-size:12px;color:var(--muted);text-align:right;margin:0;opacity:.8}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -109,7 +115,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
 
 <div class="overlay" id="ovSetup">
   <div class="panel">
-    <h1><span class="o">벽</span> 통과하기 <small style="font-family:var(--body);font-size:.4em;opacity:.7;vertical-align:middle">모둠 대항</small></h1>
+    <h1><span class="o">벽</span> 통과하기</h1>
     <p class="sub">구멍 뚫린 벽이 점점 다가와요. 벽이 닿기 전에 구멍 모양대로 자세를 잡으면 통과! 몸이 벽 밖으로 나가면 쾅!</p>
     <div class="steps">
       <div><b>① 모양 보기</b>위에 자세 이름과 구멍 모양이 떠요</div>
@@ -121,15 +127,15 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <div class="grid2">
       <label class="f">한 사람 벽 수
         <select id="selWalls"><option value="4">4개</option><option value="6" selected>6개</option><option value="8">8개</option></select></label>
-      <label class="f">라운드 수 (청→백 한 번씩)
+      <label class="f">라운드 수 (모둠마다 한 번씩)
         <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option></select></label>
       <label class="f">난이도
         <select id="selLevel"><option value="easy">쉬움 (넓은 구멍, 느린 벽)</option><option value="normal" selected>보통</option><option value="hard">어려움 (좁은 구멍, 빠른 벽)</option></select></label>
-      <label class="f">카메라
-        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
     </div>
+    <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
+        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
-    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
+    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
     <p class="note">기기를 3m쯤 앞에 세우고 머리부터 발까지, 양팔을 벌린 끝까지 다 보이게 서 주세요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>

@@ -20,31 +20,36 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
 .band{background:var(--field);color:#fff;background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 60px,transparent 60px 120px)}
-.band .in{max-width:1080px;margin:0 auto;padding-block:28px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.lanes{display:flex;height:14px}
+.lanes i{flex:1;display:block;border-top:2px solid rgba(255,255,255,.85);border-right:2px solid rgba(255,255,255,.85)}
+.lanes i:last-child{border-right:0}
+.band .in{max-width:1080px;margin:0 auto;padding-block:26px 22px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
 .band h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,7vw,60px);margin:0;line-height:1;text-wrap:balance}
 .band p{margin:6px 0 0;opacity:.9;max-width:52ch}
-.band .lanes{margin-left:auto;display:flex;gap:4px;align-self:center}
-.band .lanes i{display:block;width:10px;height:44px;border-radius:3px}
 main{max-width:1080px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
 section h2{font-family:var(--display);font-weight:400;font-size:clamp(24px,4.5vw,32px);margin:0 0 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
 .count{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .step{display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.step button{width:48px;height:48px;border:0;background:var(--bg);color:var(--ink);font-size:24px;cursor:pointer}
-.step output{min-width:72px;text-align:center;font-family:var(--display);font-size:26px;font-variant-numeric:tabular-nums}
+.step button{width:56px;height:56px;border:0;background:var(--bg);color:var(--ink);font-size:28px;cursor:pointer}
+.step button:disabled{opacity:.35;cursor:default}
+.step output{min-width:84px;text-align:center;font-family:var(--display);font-size:32px;font-variant-numeric:tabular-nums}
 .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .team{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 8px;background:var(--bg);min-width:0}
 .team input[type=color]{width:34px;height:34px;border:0;padding:0;background:none;cursor:pointer;flex:none}
 .team input[type=text]{flex:1;min-width:0;font:inherit;font-size:17px;border:0;background:transparent;color:var(--ink);padding:6px 2px}
-.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.game{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;position:relative;transition:transform .12s,border-color .12s}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+@media (min-width:720px){.games{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}}
+.game{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px 12px 12px;position:relative;transition:transform .12s,border-color .12s;min-width:0}
+@media (min-width:720px){.game{padding:14px 16px;gap:6px}}
 .game:hover{transform:translateY(-2px);border-color:var(--field)}
 .game:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.game .em{font-size:34px;line-height:1}
-.game b{font-family:var(--display);font-weight:400;font-size:22px}
-.game span{font-size:14px;color:var(--muted)}
-.game .tag{position:absolute;right:12px;top:12px;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.game .em{font-size:30px;line-height:1}
+.game b{font-family:var(--display);font-weight:400;font-size:19px;line-height:1.15}
+.game span{font-size:13px;color:var(--muted);line-height:1.4}
+@media (min-width:720px){.game .em{font-size:34px}.game b{font-size:22px}.game span{font-size:14px}}
+.game .tag{position:absolute;right:10px;top:10px;font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--muted)}
 .game .played{color:var(--field);font-weight:700}
 .tbl{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:420px}
@@ -58,6 +63,7 @@ td.sum{font-family:var(--display);font-size:22px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .btn{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer;min-height:44px}
 .btn.danger{color:var(--red);border-color:var(--red)}
+.linkish{background:none;border:0;color:var(--muted);text-decoration:underline;padding:6px 0;font:inherit;font-size:14px;cursor:pointer;min-height:0}
 .btn:focus-visible,.step button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
 .note{font-size:13px;color:var(--muted);margin:8px 0 0;line-height:1.6}
@@ -70,18 +76,16 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 <div class="band"><div class="in">
   <div>
     <h1>몸으로 체육대회</h1>
-    <p>카메라가 몸 동작을 알아보는 체육 게임 9가지. 모둠을 정하고 게임을 고르면, 모둠별로 차례대로 도전해요.</p>
+    <p>카메라가 몸 동작을 알아보는 체육 게임 9가지. 모둠을 정하고 게임을 고르면 모둠별로 차례대로 도전해요.</p>
   </div>
-  <div class="lanes" id="lanes" aria-hidden="true"></div>
-</div></div>
+</div><div class="lanes" id="lanes" aria-hidden="true"></div></div>
 <main>
   <section>
     <h2>① 참가 모둠 <small>이름과 색을 눌러 바꿀 수 있어요</small></h2>
     <div class="card">
       <div class="count">
         <span>모둠 수</span>
-        <div class="step"><button id="minus" aria-label="모둠 하나 빼기">−</button><output id="cnt">2</output><button id="plus" aria-label="모둠 하나 더하기">+</button></div>
-        <span class="note" style="margin:0">2~8개</span>
+        <div class="step" title="2~8모둠"><button id="minus" aria-label="모둠 하나 빼기">−</button><output id="cnt">2</output><button id="plus" aria-label="모둠 하나 더하기">+</button></div>
       </div>
       <div class="teams" id="teams"></div>
       <div class="confirm" id="cntConfirm" hidden>
@@ -92,7 +96,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
   </section>
 
   <section>
-    <h2>② 게임 고르기 <small>휴대폰·태블릿은 크롬에서, 기기는 가로로 2~3m 앞에</small></h2>
+    <h2>② 게임 고르기 <small>기기는 가로로 2~3m 앞에 세워요</small></h2>
     <div class="games" id="games"></div>
   </section>
 
@@ -101,7 +105,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
     <p class="rule" id="rule"></p>
     <div class="card tbl" id="board"></div>
     <div class="row">
-      <button class="btn danger" id="reset">점수판 지우기</button>
+      <button class="linkish" id="reset">점수판 지우기</button>
       <span class="confirm" id="resetConfirm" hidden><span>정말 지울까요?</span><button class="btn danger" id="resetYes">지우기</button><button class="btn" id="resetNo">취소</button></span>
     </div>
     <p class="note">기록은 이 기기의 브라우저에만 저장돼요. 카메라 영상은 저장하거나 밖으로 보내지 않아요.</p>

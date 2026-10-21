@@ -41,27 +41,33 @@ video{display:none}
 .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(20,10,8,.6);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
 .icon-btn:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
-.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(14,7,5,.6);
-  padding-block:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px);
+.overlay{position:fixed;inset:0;display:grid;place-items:center;align-content:start;background:rgba(14,7,5,.6);
+  padding-block:calc(env(safe-area-inset-top,0px) + 62px) calc(env(safe-area-inset-bottom,0px) + 16px);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.overlay.clear{align-content:center}
 .overlay.clear{background:transparent;pointer-events:none}
-.panel{width:100%;max-width:540px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
-  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:16px;pointer-events:auto;
+.panel{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:13px;pointer-events:auto;
   background-image:repeating-linear-gradient(0deg,transparent 0 46px,rgba(246,239,230,.05) 46px 48px),radial-gradient(circle at 92% 8%,rgba(196,71,46,.22),transparent 45%)}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,7.5vw,50px);margin:0;line-height:1.05}
 h1 .r{color:#ff7a5c}
 h2{font-family:var(--display);font-weight:400;font-size:clamp(26px,6vw,40px);margin:0;text-align:center;text-wrap:balance}
-.sub{color:var(--muted);margin:0;line-height:1.6;font-size:15px}
+.sub{color:var(--muted);margin:0;line-height:1.5;font-size:14px}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-@media (max-width:420px){.steps{grid-template-columns:1fr}}
-.steps div{background:var(--panel-2);border-radius:12px;padding:10px;font-size:14px;line-height:1.45;min-width:0}
-.steps b{display:block;font-family:var(--display);font-weight:400;font-size:18px;color:#ff7a5c;margin-bottom:2px}
+.steps div{background:var(--panel-2);border-radius:12px;padding:8px 9px;font-size:12.5px;line-height:1.4;min-width:0}
+@media (min-width:600px){.steps div{padding:10px;font-size:14px}}
+.steps b{display:block;font-family:var(--display);font-weight:400;font-size:16px;color:#ff7a5c;margin-bottom:2px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:420px){.grid2{grid-template-columns:1fr}}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);min-width:0}
 input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
 .team-in.c input{border-color:var(--chung);box-shadow:inset 4px 0 0 var(--chung)}
 .team-in.b input{border-color:#c9cfdf;box-shadow:inset 4px 0 0 #fff}
+.dev summary{cursor:pointer;font-size:14px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px;min-height:40px}
+.dev summary::before{content:'▸';font-size:12px}
+.dev[open] summary::before{content:'▾'}
+.dev summary span{opacity:.7;font-size:12px}
+.devin{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;padding:6px 0 2px}
+.devin .check{grid-column:1/-1}
 .check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer}
 .check input{width:22px;height:22px;accent-color:var(--track)}
 .btn{font-family:var(--display);font-size:clamp(20px,4.6vw,28px);border:0;border-radius:14px;padding:14px 18px;cursor:pointer;background:var(--track);color:#fff;box-shadow:0 4px 0 var(--track-deep);min-height:56px}
@@ -86,7 +92,7 @@ td .win{color:var(--gold)}
 tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
 .winner{font-family:var(--display);font-size:clamp(40px,10vw,72px);text-align:center;line-height:1.05}
 .winner.c{color:#5f8bff}.winner.b{color:#fff}.winner.d{color:var(--gold)}
-.note{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
 .credit{font-size:12px;color:var(--muted);text-align:right;margin:0;opacity:.8}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -105,7 +111,7 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
 
 <div class="overlay" id="ovSetup">
   <div class="panel">
-    <h1><span class="r">50m</span> 달리기 <small style="font-family:var(--body);font-size:.4em;opacity:.7;vertical-align:middle">모둠 대항</small></h1>
+    <h1><span class="r">50m</span> 달리기</h1>
     <p class="sub">제자리에서 무릎을 높이 들며 뛰면 화면 아래 트랙의 내 선수가 달려요. 다른 모둠 기록은 그림자 선수로 함께 달려요.</p>
     <div class="steps">
       <div><b>① 차렷·준비</b>온몸이 보이게 가만히 서요</div>
@@ -116,15 +122,15 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
     <div class="grid2">
       <label class="f">거리
         <select id="selDist"><option value="30">30m</option><option value="50" selected>50m</option><option value="100">100m</option></select></label>
-      <label class="f">라운드 수 (청→백 한 번씩)
+      <label class="f">라운드 수 (모둠마다 한 번씩)
         <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option><option value="4">4라운드</option></select></label>
       <label class="f">무릎 높이 기준
         <select id="selLift"><option value="low">낮게 (3~4학년)</option><option value="mid" selected>보통 (5~6학년)</option><option value="high">높게 (어른)</option></select></label>
-      <label class="f">카메라
-        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
     </div>
+    <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
+        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
-    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
+    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
     <p class="note">기기를 3m쯤 앞에 세우고 머리부터 발까지 다 보이게 서 주세요. 무릎이 잘 보여야 걸음을 셀 수 있어요. 기록은 몸짓으로 계산한 게임 기록이라 실제 50m 기록과는 달라요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>
@@ -272,8 +278,8 @@ function readForm(){S.dist=+$('selDist').value;S.rounds=+$('selRounds').value;
   try{localStorage.setItem('dash50.v1',JSON.stringify(S))}catch(e){}}
 loadForm();
 PE.setupInfo($('teamInfo'));
-document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기 청백전`;
-$('selDist').addEventListener('change',e=>{document.querySelector('h1').innerHTML=`<span class="r">${e.target.value}m</span> 달리기 청백전`});
+document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기`;
+$('selDist').addEventListener('change',e=>{document.querySelector('h1').innerHTML=`<span class="r">${e.target.value}m</span> 달리기`});
 
 /* ---------- 소리 ---------- */
 let AC=null;
@@ -555,7 +561,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 let camFacing=null;
 $('btnStart').addEventListener('click',async()=>{
-  readForm();document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기 청백전`;
+  readForm();document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기`;
   const btn=$('btnStart'),msg=$('setupMsg');
   try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
   btn.disabled=true;
