@@ -128,7 +128,6 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     </div>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
-    <label class="check"><input type="checkbox" id="chkPip" checked>구석에 내 모습(카메라) 작게 보기</label>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
     <p class="note">기기를 2~3m 앞에 세워 두고, 머리부터 발까지 다 보이게 서 주세요. 휴대폰·태블릿은 크롬에서 열고 카메라를 허용해 주세요.</p>
@@ -186,9 +185,9 @@ const LEVEL={
 const S={nameC:'청',nameB:'백',time:45,goal:20,rounds:2,level:'normal',cam:'user',mirror:true,sound:true,pip:true};
 try{Object.assign(S,JSON.parse(localStorage.getItem('climbBattle.v2')||'{}'))}catch(e){}
 function loadForm(){$('nameC').value=S.nameC;$('nameB').value=S.nameB;$('selTime').value=S.time;$('selGoal').value=S.goal;$('selRounds').value=S.rounds;
-  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound;$('chkPip').checked=S.pip}
+  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
 function readForm(){S.nameC=$('nameC').value.trim()||'청';S.nameB=$('nameB').value.trim()||'백';S.time=+$('selTime').value;S.goal=+$('selGoal').value;
-  S.rounds=+$('selRounds').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;S.pip=$('chkPip').checked;
+  S.rounds=+$('selRounds').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
   try{localStorage.setItem('climbBattle.v2',JSON.stringify(S))}catch(e){}}
 loadForm();
 
@@ -360,6 +359,14 @@ function buildTile(){ // 위아래로 이어 붙는 암벽 무늬 한 장
   tile=c;
 }
 let hDisp=0;
+function drawVideo(f){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(vid.readyState<2)return;
+  ctx.save();
+  if(S.mirror){ctx.translate(W,0);ctx.scale(-1,1);ctx.drawImage(vid,W-f.ox-f.dw,f.oy,f.dw,f.dh)}
+  else ctx.drawImage(vid,f.ox,f.oy,f.dw,f.dh);
+  ctx.restore();
+}
 function drawScene(now){ // 하늘 → 먼 산 → 암벽(높이만큼 아래로 흐름) → 정상 바위턱과 깃발
   if(!tile)buildTile();
   const mPx=H*.12, wallTop=H*.26-(S.goal-hDisp)*mPx;
@@ -434,7 +441,7 @@ function drawHold(now){
 }
 function drawSkeleton(f){
   if(!lm||performance.now()-lmTime>600)return;
-  const P=i=>toScreen(lm[i],f), lw=Math.max(5,Math.min(W,H)*.012);
+  const P=i=>toScreen(lm[i],f), lw=Math.max(3,Math.min(W,H)*.007);
   const colOf=i=>LEFT_IDX.has(i)?COL.L:RIGHT_IDX.has(i)?COL.R:'#fff';
   ctx.lineCap='round';
   for(const[a,b]of BONES){const p=P(a),q=P(b);if(p.v<.35||q.v<.35)continue;
@@ -445,10 +452,7 @@ function drawSkeleton(f){
   for(const i of [15,16,27,28]){const p=P(i);if(p.v<.35)continue;
     const big=i===want;ctx.beginPath();ctx.arc(p.x,p.y,lw*(big?4:2.4),0,Math.PI*2);ctx.fillStyle=colOf(i);ctx.fill();
     ctx.lineWidth=big?4:2;ctx.strokeStyle='#fff';ctx.stroke()}
-  const n=P(0),ls=P(11),rs=P(12);
-  if(n.v>.4){const hr=Math.max(lw*2.2,Math.hypot(ls.x-rs.x,ls.y-rs.y)*.32);
-    ctx.beginPath();ctx.arc(n.x,n.y,hr,0,Math.PI*2);ctx.fillStyle='#f3d2b3';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.5)';ctx.stroke();
-    ctx.beginPath();ctx.arc(n.x,n.y-hr*.1,hr*1.08,Math.PI,0);ctx.closePath();ctx.fillStyle=G.team==='c'?'#1f5bff':'#ffffff';ctx.fill();ctx.stroke()}
+  const n=P(0);if(n.v>.4){ctx.beginPath();ctx.arc(n.x,n.y,lw*1.8,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill()}
 }
 function drawGauge(now){ // 오른쪽 높이 막대
   if(G.phase==='setup'||G.phase==='final')return;
@@ -492,7 +496,8 @@ let noBodySince=0, lastNow=0;
 function frame(now){
   const f=fit(), dt=Math.min(.05,(now-(lastNow||now))/1000);lastNow=now;
   hDisp+=(G.h-hDisp)*Math.min(1,dt*5);
-  drawScene(now);
+  drawVideo(f);
+  ctx.save();ctx.globalAlpha=.32;drawScene(now);ctx.restore();
   drawRope(f);
   if(G.phase==='play'){
     G.left=Math.max(0,S.time-(now-G.t0)/1000);
@@ -508,7 +513,6 @@ function frame(now){
   drawHold(now);
   drawSkeleton(f);
   drawGauge(now);
-  drawPip(f);
   drawFx();
   if(G.flash&&now-G.flash<260){ctx.fillStyle=`rgba(${G.flashCol},${.35*(1-(now-G.flash)/260)})`;ctx.fillRect(0,0,W,H)}
   if(G.phase!=='setup')updateHud();
