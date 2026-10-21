@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>암벽 오르기 청백전</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 화면 전체가 카메라 무대, 오른쪽에 높이 막대, 위에 점수판, 가운데 안내 패널 */
+:root{
+  --chung:#1f5bff; --chung-deep:#0d2f9e;
+  --baek:#f4f6fb; --baek-ink:#2a2f3d;
+  --left:#ff8a1f; --right:#22c46b; --gold:#ffb81c; --danger:#ff3b4e;
+  --rock:#7a5a43; --rock-2:#4a3628;
+  --ink:#0f0d0b; --panel:#1d1915; --panel-2:#2a241e; --line:#4a3f33; --text:#f6efe6; --muted:#bfae98;
+  --display:'Black Han Sans','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+#stage{position:fixed;inset:0;background:#000}
+#cv{width:100%;height:100%;display:block}
+video{display:none}
+
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:center;pointer-events:none;padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
+.hud-box{display:flex;flex-direction:column;align-items:center;gap:4px}
+#timer{font-family:var(--display);font-size:clamp(40px,9vmin,96px);line-height:1;color:#fff;text-shadow:0 0 3px #000,0 3px 0 rgba(0,0,0,.6);font-variant-numeric:tabular-nums}
+#timer.warn{color:var(--danger)}
+#teamChip{font-family:var(--display);font-size:clamp(16px,3.4vmin,32px);padding:.15em .8em;border-radius:999px;background:var(--chung);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);font-variant-numeric:tabular-nums}
+#teamChip.baek{background:var(--baek);color:var(--baek-ink)}
+#roundTag{position:fixed;left:0;top:0;pointer-events:none;font-size:clamp(13px,2.4vmin,20px);color:#fff;text-shadow:0 1px 3px #000;padding:calc(env(safe-area-inset-top,0px) + 12px) 0 0 max(16px,env(safe-area-inset-left,0px))}
+#warnBody{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);transform:translateX(-50%);background:rgba(255,59,78,.92);color:#fff;padding:8px 16px;border-radius:10px;font-size:clamp(14px,2.6vmin,22px);white-space:nowrap}
+
+#tools{position:fixed;right:0;top:0;display:flex;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 0}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(20,16,12,.6);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.icon-btn:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(15,12,9,.6);
+  padding-block:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.overlay.clear{background:transparent;pointer-events:none}
+.panel{width:100%;max-width:540px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:16px;pointer-events:auto;
+  background-image:radial-gradient(circle at 92% 8%,rgba(255,138,31,.10),transparent 40%)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,7vw,46px);margin:0;line-height:1.05;text-wrap:balance}
+h1 .r{color:var(--left)} h1 .b{color:#fff}
+h2{font-family:var(--display);font-weight:400;font-size:clamp(26px,6vw,40px);margin:0;text-align:center;text-wrap:balance}
+.sub{color:var(--muted);margin:0;line-height:1.55;font-size:15px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);min-width:0}
+input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
+.team-in.c input{border-color:var(--chung);box-shadow:inset 4px 0 0 var(--chung)}
+.team-in.b input{border-color:#c9cfdf;box-shadow:inset 4px 0 0 #fff}
+.check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--left)}
+.btn{font-family:var(--display);font-size:clamp(20px,4.6vw,28px);border:0;border-radius:14px;padding:14px 18px;cursor:pointer;background:var(--danger);color:#fff;box-shadow:0 4px 0 #a51525;min-height:56px}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #a51525}
+.btn.ghost{background:var(--panel-2);box-shadow:0 4px 0 #0c0a08;color:var(--text);border:1px solid var(--line)}
+.btn.blue{background:var(--chung);box-shadow:0 4px 0 var(--chung-deep)}
+.btn.white{background:var(--baek);color:var(--baek-ink);box-shadow:0 4px 0 #9aa3b8}
+.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1 1 160px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;color:var(--text)}
+.legend span{display:flex;align-items:center;gap:8px;background:var(--panel-2);border-radius:10px;padding:8px 10px}
+.hold{width:22px;height:18px;border-radius:45% 55% 50% 40%;flex:none}
+.hold.l{background:var(--left)}.hold.r{background:var(--right)}
+.msg{font-size:14px;color:var(--gold);min-height:1.2em;margin:0;line-height:1.5}
+.big-turn{font-family:var(--display);font-size:clamp(44px,12vw,96px);text-align:center;line-height:1}
+.big-turn.c{color:var(--chung);-webkit-text-stroke:2px #fff}.big-turn.b{color:#fff;-webkit-text-stroke:2px var(--baek-ink)}
+.center{text-align:center}
+#count{font-family:var(--display);font-size:clamp(120px,34vmin,300px);color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.5),0 0 30px rgba(0,0,0,.6);line-height:1}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:17px}
+th,td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:400;font-size:14px}
+td.c{color:#8fb0ff;font-weight:700} td.b{color:#fff;font-weight:700}
+td small{display:block;font-size:12px;color:var(--gold);font-weight:400}
+tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
+.winner{font-family:var(--display);font-size:clamp(40px,10vw,72px);text-align:center;line-height:1.05}
+.winner.c{color:#5f8bff}.winner.b{color:#fff}.winner.d{color:var(--gold)}
+.stat{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
+.stat b{color:var(--text);font-size:20px;font-variant-numeric:tabular-nums}
+.note{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.credit{font-size:12px;color:var(--muted);text-align:right;margin:0;opacity:.8}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<video id="vid" playsinline muted></video>
+
+<div id="hud" hidden><div class="hud-box"><div id="timer">30</div><div id="teamChip">청 0m</div></div></div>
+<div id="roundTag" hidden></div>
+<div id="warnBody" hidden>온몸이 화면에 보이게 서 주세요</div>
+<div id="tools">
+  <button class="icon-btn" id="btnFull" title="전체 화면" aria-label="전체 화면">⛶</button>
+  <button class="icon-btn" id="btnHome" title="설정으로" aria-label="설정으로" hidden>⚙</button>
+</div>
+
+<div class="overlay" id="ovSetup">
+  <div class="panel">
+    <h1><span class="r">암벽</span> 오르기 <span class="b">청백전</span></h1>
+    <p class="sub">화면에 뜨는 <b>홀드</b>를 적힌 대로 <b>왼손·오른손·왼발·오른발</b>로 잡으면 1m씩 올라가요. 너무 늦으면 미끄러져 1m 내려가요. 정상에 먼저 오르거나 더 높이 오른 팀이 이겨요!</p>
+    <div class="legend">
+      <span><span class="hold l"></span>왼손 ✋ · 왼발 🦶</span>
+      <span><span class="hold r"></span>오른손 ✋ · 오른발 🦶</span>
+    </div>
+    <div class="grid2">
+      <label class="f team-in c">청팀 이름<input type="text" id="nameC" maxlength="8" value="청"></label>
+      <label class="f team-in b">백팀 이름<input type="text" id="nameB" maxlength="8" value="백"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">한 번 도전 시간
+        <select id="selTime"><option value="30">30초</option><option value="45" selected>45초</option><option value="60">60초</option><option value="90">90초</option></select></label>
+      <label class="f">정상 높이
+        <select id="selGoal"><option value="15">15m</option><option value="20" selected>20m</option><option value="30">30m</option><option value="40">40m</option></select></label>
+      <label class="f">라운드 수 (청→백 한 번씩)
+        <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option><option value="4">4라운드</option></select></label>
+      <label class="f">난이도
+        <select id="selLevel"><option value="easy">쉬움 (손만)</option><option value="normal" selected>보통 (손+발)</option><option value="hard">어려움</option></select></label>
+      <label class="f">카메라
+        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
+    <button class="btn" id="btnStart">시작하기</button>
+    <p class="msg" id="setupMsg"></p>
+    <p class="note">기기를 2~3m 앞에 세워 두고, 머리부터 발까지 다 보이게 서 주세요. 휴대폰·태블릿은 크롬에서 열고 카메라를 허용해 주세요.</p>
+    <p class="credit">만든이 kingkongssam</p>
+  </div>
+</div>
+
+<div class="overlay clear" id="ovReady" hidden>
+  <div class="panel center">
+    <div id="readyRound" class="sub center"></div>
+    <div id="readyTeam" class="big-turn c">청 차례</div>
+    <p class="sub center">온몸이 보이게 서면 뼈대가 그려져요.<br>주황 = 왼쪽, 초록 = 오른쪽</p>
+    <button class="btn" id="btnGo">등반 시작</button>
+  </div>
+</div>
+
+<div class="overlay clear" id="ovCount" hidden><div id="count">3</div></div>
+
+<div class="overlay" id="ovTurn" hidden>
+  <div class="panel center">
+    <div id="turnTeam" class="big-turn c">청</div>
+    <h2 id="turnScore">0m</h2>
+    <div class="stat"><span>잡은 홀드 <b id="turnGrab">0</b></span><span>미끄러짐 <b id="turnSlip">0</b></span></div>
+    <button class="btn" id="btnNext">다음 차례</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovFinal" hidden>
+  <div class="panel">
+    <div id="winner" class="winner c">청 우승!</div>
+    <div class="tbl-wrap"><table id="tbl"></table></div>
+    <p class="note center">높이(m) 합계로 겨뤄요. 같으면 정상에 더 빨리 오른 팀이 이겨요.</p>
+    <div class="row">
+      <button class="btn ghost" id="btnSetup">설정으로</button>
+      <button class="btn" id="btnAgain">다시 하기</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script>
+(()=>{
+const POSE_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d'), vid=$('vid');
+const COL={L:'#ff8a1f',R:'#22c46b'};
+
+/* ---------- 설정 ---------- */
+// life: 홀드가 기다려 주는 시간(초), feet: 발 홀드 비율, size: 홀드 크기, reach: 몸에서 떨어진 정도
+const LEVEL={
+  easy:  {life:4.0, feet:0,   size:1.15, reach:.9},
+  normal:{life:3.0, feet:.35, size:.95,  reach:1.1},
+  hard:  {life:2.2, feet:.45, size:.8,   reach:1.3}
+};
+const S={nameC:'청',nameB:'백',time:45,goal:20,rounds:2,level:'normal',cam:'user',mirror:true,sound:true};
+try{Object.assign(S,JSON.parse(localStorage.getItem('climbBattle.v1')||'{}'))}catch(e){}
+function loadForm(){$('nameC').value=S.nameC;$('nameB').value=S.nameB;$('selTime').value=S.time;$('selGoal').value=S.goal;$('selRounds').value=S.rounds;
+  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
+function readForm(){S.nameC=$('nameC').value.trim()||'청';S.nameB=$('nameB').value.trim()||'백';S.time=+$('selTime').value;S.goal=+$('selGoal').value;
+  S.rounds=+$('selRounds').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
+  try{localStorage.setItem('climbBattle.v1',JSON.stringify(S))}catch(e){}}
+loadForm();
+
+/* ---------- 소리 ---------- */
+let AC=null;
+function beep(freq,dur=.12,type='square',vol=.12,slide=0){
+  if(!S.sound||!AC)return;
+  const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(AC.destination);o.start(t);o.stop(t+dur+.02);
+}
+function thud(){
+  if(!S.sound||!AC)return;
+  const len=Math.floor(AC.sampleRate*.08),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
+  const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=buf;f.type='lowpass';f.frequency.value=700;g.gain.value=.5;
+  s.connect(f).connect(g).connect(AC.destination);s.start();
+}
+const sfx={grab:h=>{thud();beep(440+h*18,.1,'triangle',.12)},slip:()=>beep(500,.45,'sawtooth',.14,.35),
+  tick:()=>beep(660,.06,'sine',.12),go:()=>beep(1046,.35,'sawtooth',.12),count:()=>beep(523,.15,'sine',.15),
+  end:()=>{beep(523,.2,'triangle',.18);setTimeout(()=>beep(392,.4,'triangle',.18),180)},
+  summit:()=>[523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,.22,'triangle',.16),i*110)),
+  win:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.25,'triangle',.16),i*140))};
+
+/* ---------- 카메라·자세 인식 ---------- */
+let pose=null, stream=null, lm=null, lmTime=0, detecting=false;
+async function initPose(){
+  if(pose)return;
+  if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
+  pose=new Pose({locateFile:f=>POSE_BASE+f});
+  pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  pose.onResults(r=>{lm=r.poseLandmarks||null;lmTime=performance.now()});
+  await pose.initialize();
+}
+async function startCamera(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 열어 주세요.');
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:S.cam,width:{ideal:1280},height:{ideal:720}}});
+  vid.srcObject=stream;await vid.play();
+}
+async function detectLoop(){
+  if(detecting)return;detecting=true;
+  while(detecting){
+    if(vid.readyState>=2&&pose){try{await pose.send({image:vid})}catch(e){}}
+    await new Promise(r=>requestAnimationFrame(r));
+  }
+}
+
+/* ---------- 화면 좌표 ---------- */
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+window.addEventListener('resize',resize);resize();
+function fit(){const vw=vid.videoWidth||1280,vh=vid.videoHeight||720,s=Math.max(W/vw,H/vh);return{dw:vw*s,dh:vh*s,ox:(W-vw*s)/2,oy:(H-vh*s)/2}}
+function toScreen(p,f){const x=S.mirror?1-p.x:p.x;return{x:f.ox+x*f.dw,y:f.oy+p.y*f.dh,v:p.visibility==null?1:p.visibility}}
+function gaugeW(){return Math.max(44,Math.min(W,H)*.07)}
+
+/* ---------- 몸 정보 ---------- */
+// 사람 기준 왼쪽(L)/오른쪽(R). 손: 손목+검지, 발: 발목+발끝
+const LIMB={LH:{side:'L',hand:true,pts:[15,19],name:'왼손'},RH:{side:'R',hand:true,pts:[16,20],name:'오른손'},
+            LF:{side:'L',hand:false,pts:[27,31],name:'왼발'},RF:{side:'R',hand:false,pts:[28,32],name:'오른발'}};
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
+const LEFT_IDX=new Set([11,13,15,19,23,25,27,31]), RIGHT_IDX=new Set([12,14,16,20,24,26,28,32]);
+function bodyInfo(f){
+  if(!lm||performance.now()-lmTime>600)return null;
+  const P=i=>toScreen(lm[i],f);
+  const ls=P(11),rs=P(12),lh=P(23),rh=P(24);
+  if(Math.min(ls.v,rs.v,lh.v,rh.v)<.4)return null;
+  const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2},hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2};
+  const torso=Math.max(30,Math.hypot(sc.x-hc.x,sc.y-hc.y));
+  const dirL=Math.sign(ls.x-rs.x)||-1; // 화면에서 사람 왼쪽이 어느 방향인지
+  return{sc,hc,torso,P,ls,rs,lh,rh,dirL};
+}
+
+/* ---------- 게임 상태 ---------- */
+const G={phase:'setup',round:1,team:'c',res:{c:[],b:[]},h:0,grab:0,slip:0,t0:0,left:0,hold:null,nextKind:null,lastKind:null,fx:[],scroll:0,scrollV:0,flash:0,flashCol:'',lastTick:0,summitT:null,rocks:[]};
+function teamName(t){return t==='c'?S.nameC:S.nameB}
+function show(id,on){$(id).hidden=!on}
+
+function pickKind(){
+  const L=LEVEL[S.level];
+  const last=G.lastKind;
+  let foot=Math.random()<L.feet;
+  // 같은 쪽 손이 연속으로 나오지 않게(등반처럼 번갈아)
+  let side;
+  if(last&&LIMB[last].hand===!foot)side=LIMB[last].side==='L'?'R':'L';
+  else side=Math.random()<.5?'L':'R';
+  return side+(foot?'F':'H');
+}
+function makeHold(now,f){
+  const b=bodyInfo(f);if(!b)return null;
+  const L=LEVEL[S.level], kind=G.nextKind||pickKind(), lb=LIMB[kind];
+  G.nextKind=pickKind();
+  const sideSign=lb.side==='L'?b.dirL:-b.dirL, t=b.torso;
+  const r=Math.max(Math.min(W,H)*.04,Math.min(Math.min(W,H)*.09,t*.27))*L.size;
+  const gw=gaugeW(), m=r+10, top=110;
+  for(let k=0;k<30;k++){
+    let x,y;
+    if(lb.hand){ // 어깨 위·바깥쪽: 팔을 뻗어 잡기
+      const sh=lb.side==='L'?b.ls:b.rs;
+      x=sh.x+sideSign*t*(.15+Math.random()*.75)*L.reach;
+      y=sh.y-t*(.45+Math.random()*.75)*L.reach;
+    }else{ // 무릎 높이·옆: 발을 들어 딛기
+      const hp=lb.side==='L'?b.lh:b.rh;
+      x=hp.x+sideSign*t*(.25+Math.random()*.7)*L.reach;
+      y=b.hc.y+t*(.45+Math.random()*.45);
+    }
+    x=Math.min(W-gw-m-8,Math.max(m,x));y=Math.min(H-m,Math.max(top+m,y));
+    // 그 손발이 이미 그 자리에 있으면 다시
+    const near=lb.pts.some(i=>{const p=b.P(i);return p.v>.35&&Math.hypot(p.x-x,p.y-y)<r*2.4});
+    if(near&&k<29)continue;
+    G.lastKind=kind;
+    return{x,y,r,kind,born:now,life:L.life*1000,seed:Math.random()*1000};
+  }
+  return null;
+}
+function grabTest(now,f){
+  const h=G.hold;if(!h)return;
+  const b=bodyInfo(f);if(!b)return;
+  const lb=LIMB[h.kind];
+  const ok=lb.pts.some(i=>{const p=b.P(i);return p.v>.35&&Math.hypot(p.x-h.x,p.y-h.y)<h.r+8});
+  if(ok){
+    G.h++;G.grab++;G.scrollV+=H*.18;sfx.grab(G.h);
+    burst(h,COL[lb.side],'+1m');G.hold=null;G.lastGone=now;
+    if(G.h>=S.goal){G.summitT=(now-G.t0)/1000;sfx.summit();endTurn(true)}
+  }
+}
+function slip(now){
+  const h=G.hold;G.hold=null;G.slip++;G.lastGone=now;
+  if(G.h>0){G.h--;G.scrollV-=H*.25}
+  sfx.slip();G.flash=now;G.flashCol='255,59,78';
+  G.fx.push({x:h.x,y:h.y,vy:1.5,life:1,txt:'미끄러짐!',col:'#ff3b4e',kind:'t',size:Math.max(28,h.r*.7)});
+}
+function burst(h,col,txt){
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,s=2+Math.random()*5;G.fx.push({x:h.x,y:h.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col:i%3?'#c9a27e':col,kind:'p',sz:3+Math.random()*5})}
+  G.fx.push({x:h.x+h.r,y:h.y-h.r*.6,vy:-1.4,life:1,txt,col:'#fff',kind:'t',size:Math.max(28,h.r*.8)});
+}
+
+/* ---------- 그리기 ---------- */
+function initRocks(){G.rocks=[];for(let i=0;i<26;i++)G.rocks.push({x:Math.random(),y:Math.random(),s:.4+Math.random()*.8,c:Math.random()})}
+initRocks();
+function drawVideo(f){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(vid.readyState<2)return;
+  ctx.save();
+  if(S.mirror){ctx.translate(W,0);ctx.scale(-1,1);ctx.drawImage(vid,W-f.ox-f.dw,f.oy,f.dw,f.dh)}
+  else ctx.drawImage(vid,f.ox,f.oy,f.dw,f.dh);
+  ctx.restore();
+}
+function drawWall(){ // 올라갈수록 아래로 흘러가는 바위 무늬(가장자리)
+  if(G.phase==='setup')return;
+  const u=Math.min(W,H)*.05;
+  ctx.save();ctx.globalAlpha=.32;
+  for(const r of G.rocks){
+    const y=((r.y*H+G.scroll)%H+H)%H, edge=r.x<.5?r.x*W*.22:W-gaugeW()-(1-r.x)*W*.22;
+    ctx.fillStyle=r.c<.5?'#7a5a43':'#5b4332';
+    ctx.beginPath();ctx.ellipse(edge,y,u*r.s*1.3,u*r.s,r.c*3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+}
+function blob(x,y,r,seed){ // 울퉁불퉁한 홀드 모양
+  ctx.beginPath();
+  const N=8,pts=[];
+  for(let i=0;i<N;i++){const a=i/N*Math.PI*2,k=1+.14*Math.sin(seed+i*2.3)+.06*Math.cos(seed*1.7+i*4.1);pts.push([x+Math.cos(a)*r*k*1.12,y+Math.sin(a)*r*k*.92])}
+  const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];let m0=mid(pts[N-1],pts[0]);ctx.moveTo(m0[0],m0[1]);
+  for(let i=0;i<N;i++){const p=pts[i],m=mid(p,pts[(i+1)%N]);ctx.quadraticCurveTo(p[0],p[1],m[0],m[1])}
+  ctx.closePath();
+}
+function drawHold(now){
+  const h=G.hold;if(!h)return;
+  const lb=LIMB[h.kind],col=COL[lb.side],age=(now-h.born)/h.life,k=Math.min(1,(now-h.born)/160),r=h.r*(.6+.4*k);
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;
+  blob(h.x,h.y,r,h.seed);ctx.fillStyle=col;ctx.fill();
+  ctx.shadowColor='transparent';
+  ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.35)';ctx.stroke();
+  // 볼트 구멍
+  ctx.beginPath();ctx.arc(h.x+r*.15,h.y-r*.1,r*.09,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.45)';ctx.fill();
+  // 글자
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=`${Math.round(r*.5)}px 'Black Han Sans',sans-serif`;
+  ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.5)';
+  const lab=(lb.hand?'✋':'🦶');
+  ctx.fillText(lab,h.x,h.y-r*.25);
+  ctx.strokeText(lb.name,h.x,h.y+r*.38);ctx.fillStyle='#fff';ctx.fillText(lb.name,h.x,h.y+r*.38);
+  // 남은 시간 고리
+  ctx.lineWidth=Math.max(5,r*.14);ctx.strokeStyle=age>.7?'#ff3b4e':'#fff';ctx.beginPath();
+  ctx.arc(h.x,h.y,r*1.25+4,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-age));ctx.stroke();
+  ctx.restore();
+  // 해당 손발에서 홀드까지 안내선
+  const b=bodyInfo(fit());
+  if(b){const ps=lb.pts.map(i=>b.P(i)).filter(p=>p.v>.35);
+    if(ps.length){const p=ps[0];ctx.save();ctx.setLineDash([8,10]);ctx.lineWidth=3;ctx.strokeStyle=col;ctx.globalAlpha=.75;
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(h.x,h.y);ctx.stroke();ctx.restore()}}
+}
+function drawSkeleton(f){
+  if(!lm||performance.now()-lmTime>600)return;
+  const P=i=>toScreen(lm[i],f), lw=Math.max(3,Math.min(W,H)*.006);
+  const colOf=i=>LEFT_IDX.has(i)?COL.L:RIGHT_IDX.has(i)?COL.R:'#fff';
+  ctx.lineCap='round';
+  for(const[a,b]of BONES){const p=P(a),q=P(b);if(p.v<.35||q.v<.35)continue;
+    ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=lw+3;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+    ctx.strokeStyle=(LEFT_IDX.has(a)&&LEFT_IDX.has(b))?COL.L:(RIGHT_IDX.has(a)&&RIGHT_IDX.has(b))?COL.R:'#fff';
+    ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke()}
+  const want=G.hold?LIMB[G.hold.kind].pts[0]:-1;
+  for(const i of [15,16,27,28]){const p=P(i);if(p.v<.35)continue;
+    const big=i===want;ctx.beginPath();ctx.arc(p.x,p.y,lw*(big?4:2.4),0,Math.PI*2);ctx.fillStyle=colOf(i);ctx.fill();
+    ctx.lineWidth=big?4:2;ctx.strokeStyle='#fff';ctx.stroke()}
+  const n=P(0);if(n.v>.4){ctx.beginPath();ctx.arc(n.x,n.y,lw*1.8,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill()}
+}
+function drawGauge(now){ // 오른쪽 높이 막대
+  if(G.phase==='setup'||G.phase==='final')return;
+  const gw=gaugeW(),x=W-gw-8,top=118,bot=H-30,hgt=bot-top;
+  ctx.save();
+  ctx.fillStyle='rgba(20,16,12,.65)';roundRect(x,top-40,gw,hgt+56,12);ctx.fill();
+  // 눈금
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1;ctx.font=`${Math.round(gw*.26)}px 'Gowun Dodum',sans-serif`;ctx.fillStyle='rgba(255,255,255,.7)';ctx.textAlign='center';
+  const step=S.goal<=20?5:10;
+  for(let m=0;m<=S.goal;m+=step){const y=bot-hgt*m/S.goal;ctx.beginPath();ctx.moveTo(x+gw*.2,y);ctx.lineTo(x+gw*.8,y);ctx.stroke()}
+  // 채움
+  const fy=bot-hgt*Math.min(1,G.h/S.goal);
+  const g=ctx.createLinearGradient(0,bot,0,top);g.addColorStop(0,'#7a5a43');g.addColorStop(1,G.team==='c'?'#3b6dff':'#ffffff');
+  ctx.fillStyle=g;roundRect(x+gw*.32,fy,gw*.36,bot-fy,6);ctx.fill();
+  // 깃발
+  ctx.font=`${Math.round(gw*.5)}px sans-serif`;ctx.fillText('🚩',x+gw/2,top-14);
+  // 사람
+  ctx.font=`${Math.round(gw*.55)}px sans-serif`;ctx.fillText('🧗',x+gw/2,fy+4);
+  ctx.font=`${Math.round(gw*.32)}px 'Black Han Sans',sans-serif`;ctx.fillStyle='#fff';ctx.fillText(G.h+'m',x+gw/2,bot+14);
+  ctx.restore();
+}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function drawFx(){
+  for(let i=G.fx.length-1;i>=0;i--){
+    const p=G.fx[i];p.life-=p.kind==='t'?.022:.035;if(p.life<=0){G.fx.splice(i,1);continue}
+    ctx.globalAlpha=p.life;
+    if(p.kind==='p'){p.x+=p.vx;p.y+=p.vy;p.vy+=.25;ctx.fillStyle=p.col;ctx.fillRect(p.x-p.sz/2,p.y-p.sz/2,p.sz,p.sz)}
+    else{p.y+=p.vy;ctx.font=`${p.size}px 'Black Han Sans',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=5;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.strokeText(p.txt,p.x,p.y);ctx.fillStyle=p.col;ctx.fillText(p.txt,p.x,p.y)}
+  }
+  ctx.globalAlpha=1;
+}
+function updateHud(){
+  $('timer').textContent=Math.ceil(G.left);
+  $('timer').classList.toggle('warn',G.phase==='play'&&G.left<=5);
+  const chip=$('teamChip');chip.textContent=`${teamName(G.team)} ${G.h}m / ${S.goal}m`;chip.classList.toggle('baek',G.team==='b');
+  $('roundTag').textContent=`${G.round} / ${S.rounds} 라운드`;
+}
+
+let noBodySince=0, lastNow=0;
+function frame(now){
+  const f=fit(), dt=Math.min(.05,(now-(lastNow||now))/1000);lastNow=now;
+  drawVideo(f);
+  // 바위 무늬 흐름
+  G.scroll+=G.scrollV*dt;G.scrollV*=Math.pow(.02,dt);
+  drawWall();
+  if(G.phase==='play'){
+    G.left=Math.max(0,S.time-(now-G.t0)/1000);
+    if(G.hold&&now-G.hold.born>G.hold.life)slip(now);
+    if(!G.hold&&now-(G.lastGone||0)>220){G.hold=makeHold(now,f);if(!G.hold)G.lastGone=now}
+    grabTest(now,f);
+    const sec=Math.ceil(G.left);if(G.left<=5&&sec!==G.lastTick&&sec>0){G.lastTick=sec;sfx.tick()}
+    const hasBody=!!bodyInfo(f);
+    if(!hasBody){if(!noBodySince)noBodySince=now}else noBodySince=0;
+    show('warnBody',noBodySince&&now-noBodySince>1200);
+    if(G.left<=0&&G.phase==='play')endTurn(false);
+  }else show('warnBody',false);
+  drawHold(now);
+  drawSkeleton(f);
+  drawGauge(now);
+  drawFx();
+  if(G.flash&&now-G.flash<260){ctx.fillStyle=`rgba(${G.flashCol},${.35*(1-(now-G.flash)/260)})`;ctx.fillRect(0,0,W,H)}
+  if(G.phase!=='setup')updateHud();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- 흐름 ---------- */
+function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
+function goReady(){
+  G.phase='ready';G.h=0;G.grab=0;G.slip=0;G.hold=null;G.nextKind=null;G.lastKind=null;G.summitT=null;G.left=S.time;
+  allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);
+  $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · 정상 ${S.goal}m`;
+  const rt=$('readyTeam');rt.textContent=`${teamName(G.team)} 차례`;rt.className='big-turn '+G.team;
+  $('btnGo').className='btn '+(G.team==='c'?'blue':'white');$('btnGo').focus();
+}
+function countdown(){
+  if(G.phase!=='ready')return;
+  G.phase='count';allHidden();show('ovCount',true);
+  let n=3;$('count').textContent=n;sfx.count();
+  const iv=setInterval(()=>{
+    if(G.phase!=='count'){clearInterval(iv);return}
+    n--;
+    if(n>0){$('count').textContent=n;sfx.count()}
+    else{clearInterval(iv);show('ovCount',false);sfx.go();G.phase='play';G.t0=performance.now();G.lastGone=G.t0;G.lastTick=0}
+  },1000);
+}
+function endTurn(summit){
+  G.phase='turnEnd';G.hold=null;if(!summit)sfx.end();
+  const ri=G.round-1;G.res[G.team][ri]={h:G.h,t:G.summitT};
+  allHidden();show('ovTurn',true);
+  const tt=$('turnTeam');tt.textContent=summit?`${teamName(G.team)} 정상 정복! 🚩`:teamName(G.team);tt.className='big-turn '+G.team;
+  tt.style.fontSize=summit?'clamp(32px,8vw,64px)':'';
+  $('turnScore').textContent=summit?`${G.h}m · ${G.summitT.toFixed(1)}초`:`${G.h}m`;
+  $('turnGrab').textContent=G.grab;$('turnSlip').textContent=G.slip;
+  const last=G.team==='b'&&G.round>=S.rounds;
+  $('btnNext').textContent=last?'최종 결과 보기':`${teamName(G.team==='c'?'b':'c')} 차례로`;
+  setTimeout(()=>$('btnNext').focus(),50);
+}
+function next(){
+  if(G.team==='c'){G.team='b'}
+  else{if(G.round>=S.rounds){final();return}G.round++;G.team='c'}
+  goReady();
+}
+function final(){
+  G.phase='final';allHidden();show('ovFinal',true);show('hud',false);show('roundTag',false);
+  const sum=t=>G.res[t].reduce((a,r)=>a+(r?r.h:0),0);
+  const tsum=t=>G.res[t].reduce((a,r)=>a+(r?(r.t!=null?r.t:S.time):S.time),0);
+  const hc=sum('c'),hb=sum('b'),w=$('winner');
+  let win=hc>hb?'c':hb>hc?'b':(tsum('c')<tsum('b')?'c':tsum('b')<tsum('c')?'b':'d');
+  if(win==='d'){w.textContent='무승부!';w.className='winner d'}else{w.textContent=`${teamName(win)} 우승!`;w.className='winner '+win}
+  const cell=(r,cls)=>r?`<td class="${cls}">${r.h}m${r.t!=null?`<small>🚩 ${r.t.toFixed(1)}초</small>`:''}</td>`:`<td class="${cls}">-</td>`;
+  let h=`<tr><th>라운드</th><th>${esc(S.nameC)}</th><th>${esc(S.nameB)}</th></tr>`;
+  for(let i=0;i<S.rounds;i++)h+=`<tr><td>${i+1}</td>${cell(G.res.c[i],'c')}${cell(G.res.b[i],'b')}</tr>`;
+  h+=`<tr class="total"><td>합계</td><td class="c">${hc}m</td><td class="b">${hb}m</td></tr>`;
+  $('tbl').innerHTML=h;sfx.win();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function newMatch(){G.round=1;G.team='c';G.res={c:[],b:[]};G.fx=[];goReady()}
+function toSetup(){G.phase='setup';G.hold=null;allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);loadForm()}
+
+let wake=null;
+async function keepAwake(){try{if('wakeLock'in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>wake=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&G.phase!=='setup')keepAwake()});
+
+let camFacing=null;
+$('btnStart').addEventListener('click',async()=>{
+  readForm();
+  const btn=$('btnStart'),msg=$('setupMsg');
+  try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
+  btn.disabled=true;
+  try{
+    if(!stream||camFacing!==S.cam){msg.textContent='카메라를 켜는 중…';await startCamera();camFacing=S.cam}
+    if(!pose){msg.textContent='동작 인식 준비 중… (처음엔 10초쯤 걸려요)';await initPose()}
+    detectLoop();msg.textContent='';keepAwake();newMatch();
+  }catch(e){
+    console.error(e);
+    msg.textContent=(e&&e.name==='NotAllowedError')?'카메라가 막혀 있어요. 크롬에서 열고, 주소창 옆 자물쇠에서 카메라를 허용해 주세요.'
+      :(e&&e.name==='NotFoundError')?'카메라를 찾지 못했어요.':(e&&e.message)||'시작하지 못했어요. 다시 눌러 주세요.';
+  }finally{btn.disabled=false}
+});
+$('btnGo').addEventListener('click',countdown);
+$('btnNext').addEventListener('click',next);
+$('btnAgain').addEventListener('click',newMatch);
+$('btnSetup').addEventListener('click',toSetup);
+$('btnHome').addEventListener('click',toSetup);
+$('btnFull').addEventListener('click',()=>{
+  try{if(document.fullscreenElement)document.exitFullscreen();else{const r=(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement);if(r&&r.catch)r.catch(()=>{})}}catch(e){}
+});
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','BUTTON'].includes(e.target.tagName))return;
+  if(e.code!=='Space'&&e.code!=='Enter')return;
+  if(G.phase==='ready'){e.preventDefault();countdown()}
+  else if(G.phase==='turnEnd'){e.preventDefault();next()}
+});
+})();
+</script>
+</body>
+</html>
