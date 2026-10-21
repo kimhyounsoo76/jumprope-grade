@@ -313,8 +313,7 @@ function judge(p,lat){
 function shoot(now,a,v,lat,depth){
   const p=(v/VREF[S.power])*(.85+.6*Math.min(.5,depth));
   const res=judge(p,lat);
-  G.last={v:+v.toFixed(2),p:+p.toFixed(2),lat:+lat.toFixed(2),depth:+depth.toFixed(2),kind:res.kind};
-  const h=G.hoop,m=Math.min(W,H),br=Math.max(m*.06,a.shW*.36);
+  const h=G.hoop,m=Math.min(W,H),br=Math.min(m*.085,Math.max(m*.05,a.shW*.36));
   const rimFront={x:h.x+lat*h.rimR*1.2,y:h.y};
   // 첫 구간: 손에서 맞는 지점까지 포물선 (멀어질수록 작아짐)
   let tx=h.x,ty=h.y;
@@ -323,7 +322,7 @@ function shoot(now,a,v,lat,depth){
   else if(res.kind==='bankin'||res.kind==='long'){tx=h.x+lat*h.rimR*1.5;ty=h.y-h.rimR*2.2}
   else if(res.kind==='short'){tx=rimFront.x;ty=h.y+h.rimR*(p<.6?1.6:.2)}
   else{tx=h.x+(res.kind==='right'?1:-1)*h.rimR*(1.8+Math.abs(lat));ty=h.y+h.rimR*.4}
-  G.ball={x0:a.mid.x,y0:a.mid.y-br*.4,x1:tx,y1:ty,s0:1,s1:.42,r:br,t0:now,dur:950,peak:Math.max(H*.12,(a.mid.y-ty)*.45+H*.12),res,stage:1,p,lat};
+  G.ball={x0:a.mid.x,y0:a.mid.y-br*.4,x1:tx,y1:ty,s0:1,s1:.42,r:br,t0:now,dur:950,peak:Math.min(Math.max(H*.12,(a.mid.y-ty)*.45+H*.12),Math.max(20,(a.mid.y+ty)/2-br-10)),res,stage:1,p,lat};
   G.state='flying';G.shots.push(null);sfx.throw();coach('');
 }
 function feedbackText(res,p,lat){
@@ -511,7 +510,7 @@ function frame(now){
   drawSkeleton(f);
   if(b&&!b.behind)drawBallAt(b.x,b.y,b.r*b.s,now/120);
   // 손에 든 공
-  if(a&&!G.ball&&(G.phase==='play'||G.phase==='ready')&&a.together&&now>=G.shotT0){const br=Math.max(Math.min(W,H)*.06,a.shW*.36);drawBallAt(a.mid.x,a.mid.y-br*.4,br,0)}
+  if(a&&!G.ball&&(G.phase==='play'||G.phase==='ready')&&a.together&&now>=G.shotT0){const br=Math.min(Math.min(W,H)*.085,Math.max(Math.min(W,H)*.05,a.shW*.36));drawBallAt(a.mid.x,a.mid.y-br*.4,br,0)}
   drawPowerBar(a,now);
   drawFx();
   if(G.flash&&now-G.flash<250){ctx.fillStyle=`rgba(255,40,60,${.25*(1-(now-G.flash)/250)})`;ctx.fillRect(0,0,W,H)}
