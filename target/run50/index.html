@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>50m 달리기 청백전</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 화면 전체가 카메라 무대, 아래에 트랙 띠, 위에 기록 시계, 가운데 안내 패널 */
+:root{
+  --chung:#1f5bff; --chung-deep:#0d2f9e;
+  --baek:#f4f6fb; --baek-ink:#2a2f3d;
+  --track:#c4472e; --track-deep:#8e2c1a; --lane:#f6efe6; --gold:#ffd23f; --danger:#ff3b4e; --green:#22c46b;
+  --ink:#140b09; --panel:#221310; --panel-2:#2f1c17; --line:#553027; --text:#fff3ee; --muted:#d0aea3;
+  --display:'Black Han Sans','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+#stage{position:fixed;inset:0;background:#000}
+#cv{width:100%;height:100%;display:block}
+video{display:none}
+
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:center;pointer-events:none;padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
+.hud-box{display:flex;flex-direction:column;align-items:center;gap:6px}
+#clock{font-family:var(--display);font-size:clamp(38px,8.5vmin,92px);line-height:1;color:#fff;text-shadow:0 0 3px #000,0 3px 0 rgba(0,0,0,.6);font-variant-numeric:tabular-nums;letter-spacing:1px}
+#teamChip{font-family:var(--display);font-size:clamp(16px,3.4vmin,32px);padding:.15em .8em;border-radius:999px;background:var(--chung);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);font-variant-numeric:tabular-nums}
+#teamChip.baek{background:var(--baek);color:var(--baek-ink)}
+#roundTag{position:fixed;left:0;top:0;pointer-events:none;font-size:clamp(13px,2.4vmin,20px);color:#fff;text-shadow:0 1px 3px #000;padding:calc(env(safe-area-inset-top,0px) + 12px) 0 0 max(16px,env(safe-area-inset-left,0px));white-space:pre;line-height:1.5}
+#coach{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);color:#fff;pointer-events:none;text-align:center;
+  font-family:var(--display);font-size:clamp(40px,11vmin,120px);text-shadow:0 4px 0 rgba(0,0,0,.55),0 0 24px rgba(0,0,0,.6);white-space:nowrap}
+#coach.small{font-family:var(--body);font-size:clamp(16px,3vmin,26px);background:rgba(20,10,8,.8);padding:8px 18px;border-radius:12px;text-shadow:none;border:1px solid rgba(255,255,255,.2);top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 24% );transform:translateX(-50%)}
+#coach.warn{color:#ff6b6b}
+#coach.small.warn{background:rgba(255,59,78,.92);color:#fff}
+
+#tools{position:fixed;right:0;top:0;display:flex;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 0}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(20,10,8,.6);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.icon-btn:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(14,7,5,.6);
+  padding-block:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.overlay.clear{background:transparent;pointer-events:none}
+.panel{width:100%;max-width:540px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:16px;pointer-events:auto;
+  background-image:repeating-linear-gradient(0deg,transparent 0 46px,rgba(246,239,230,.05) 46px 48px),radial-gradient(circle at 92% 8%,rgba(196,71,46,.22),transparent 45%)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(32px,7.5vw,50px);margin:0;line-height:1.05}
+h1 .r{color:#ff7a5c}
+h2{font-family:var(--display);font-weight:400;font-size:clamp(26px,6vw,40px);margin:0;text-align:center;text-wrap:balance}
+.sub{color:var(--muted);margin:0;line-height:1.6;font-size:15px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:420px){.steps{grid-template-columns:1fr}}
+.steps div{background:var(--panel-2);border-radius:12px;padding:10px;font-size:14px;line-height:1.45;min-width:0}
+.steps b{display:block;font-family:var(--display);font-weight:400;font-size:18px;color:#ff7a5c;margin-bottom:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);min-width:0}
+input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
+.team-in.c input{border-color:var(--chung);box-shadow:inset 4px 0 0 var(--chung)}
+.team-in.b input{border-color:#c9cfdf;box-shadow:inset 4px 0 0 #fff}
+.check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--text);cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--track)}
+.btn{font-family:var(--display);font-size:clamp(20px,4.6vw,28px);border:0;border-radius:14px;padding:14px 18px;cursor:pointer;background:var(--track);color:#fff;box-shadow:0 4px 0 var(--track-deep);min-height:56px}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--track-deep)}
+.btn.ghost{background:var(--panel-2);box-shadow:0 4px 0 #0a0403;color:var(--text);border:1px solid var(--line)}
+.btn.blue{background:var(--chung);box-shadow:0 4px 0 var(--chung-deep)}
+.btn.white{background:var(--baek);color:var(--baek-ink);box-shadow:0 4px 0 #9aa3b8}
+.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1 1 160px}
+.msg{font-size:14px;color:var(--gold);min-height:1.2em;margin:0;line-height:1.5}
+.big-turn{font-family:var(--display);font-size:clamp(44px,12vw,96px);text-align:center;line-height:1}
+.big-turn.c{color:var(--chung);-webkit-text-stroke:2px #fff}.big-turn.b{color:#fff;-webkit-text-stroke:2px var(--baek-ink)}
+.center{text-align:center}
+.stat{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
+.stat b{color:var(--text);font-size:20px;font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:17px}
+th,td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:400;font-size:14px}
+td.c{color:#8fb0ff;font-weight:700} td.b{color:#fff;font-weight:700}
+td .win{color:var(--gold)}
+tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
+.winner{font-family:var(--display);font-size:clamp(40px,10vw,72px);text-align:center;line-height:1.05}
+.winner.c{color:#5f8bff}.winner.b{color:#fff}.winner.d{color:var(--gold)}
+.note{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.credit{font-size:12px;color:var(--muted);text-align:right;margin:0;opacity:.8}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<video id="vid" playsinline muted></video>
+
+<div id="hud" hidden><div class="hud-box"><div id="clock">0.00</div><div id="teamChip">청 0.0m</div></div></div>
+<div id="roundTag" hidden></div>
+<div id="coach" hidden></div>
+<div id="tools">
+  <button class="icon-btn" id="btnFull" title="전체 화면" aria-label="전체 화면">⛶</button>
+  <button class="icon-btn" id="btnHome" title="설정으로" aria-label="설정으로" hidden>⚙</button>
+</div>
+
+<div class="overlay" id="ovSetup">
+  <div class="panel">
+    <h1><span class="r">50m</span> 달리기 청백전</h1>
+    <p class="sub">제자리에서 무릎을 높이 들며 뛰면 화면 아래 트랙의 내 선수가 달려요. 상대 팀 기록은 그림자 선수로 함께 달려요.</p>
+    <div class="steps">
+      <div><b>① 차렷·준비</b>온몸이 보이게 가만히 서요</div>
+      <div><b>② 탕!</b>신호가 나면 그때 출발! 먼저 뛰면 부정 출발</div>
+      <div><b>③ 무릎 높이</b>무릎을 높이, 빠르게 번갈아 들어요</div>
+    </div>
+    <div class="grid2">
+      <label class="f team-in c">청팀 이름<input type="text" id="nameC" maxlength="8" value="청"></label>
+      <label class="f team-in b">백팀 이름<input type="text" id="nameB" maxlength="8" value="백"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">거리
+        <select id="selDist"><option value="30">30m</option><option value="50" selected>50m</option><option value="100">100m</option></select></label>
+      <label class="f">라운드 수 (청→백 한 번씩)
+        <select id="selRounds"><option value="1">1라운드</option><option value="2" selected>2라운드</option><option value="3">3라운드</option><option value="4">4라운드</option></select></label>
+      <label class="f">무릎 높이 기준
+        <select id="selLift"><option value="low">낮게 (3~4학년)</option><option value="mid" selected>보통 (5~6학년)</option><option value="high">높게 (어른)</option></select></label>
+      <label class="f">카메라
+        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
+    <button class="btn" id="btnStart">시작하기</button>
+    <p class="msg" id="setupMsg"></p>
+    <p class="note">기기를 3m쯤 앞에 세우고 머리부터 발까지 다 보이게 서 주세요. 무릎이 잘 보여야 걸음을 셀 수 있어요. 기록은 몸짓으로 계산한 게임 기록이라 실제 50m 기록과는 달라요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>
+    <p class="credit">만든이 kingkongssam</p>
+  </div>
+</div>
+
+<div class="overlay clear" id="ovReady" hidden>
+  <div class="panel center">
+    <div id="readyRound" class="sub center"></div>
+    <div id="readyTeam" class="big-turn c">청 차례</div>
+    <p class="sub center" id="readyGhost"></p>
+    <button class="btn" id="btnGo">출발선에 서기</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovTurn" hidden>
+  <div class="panel center">
+    <div id="turnTeam" class="big-turn c">청</div>
+    <h2 id="turnScore">0.00초</h2>
+    <div class="stat"><span>걸음 <b id="turnSteps">0</b></span><span>1초에 <b id="turnCad">0</b>걸음</span></div>
+    <p class="sub center" id="turnVs"></p>
+    <button class="btn" id="btnNext">다음 차례</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovFinal" hidden>
+  <div class="panel">
+    <div id="winner" class="winner c">청 우승!</div>
+    <div class="tbl-wrap"><table id="tbl"></table></div>
+    <p class="note center">라운드마다 더 빨리 들어온 팀이 1승. 승수가 같으면 기록 합계가 짧은 팀이 이겨요.</p>
+    <div class="row">
+      <button class="btn ghost" id="btnSetup">설정으로</button>
+      <button class="btn" id="btnAgain">다시 하기</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script>
+(()=>{
+const POSE_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d'), vid=$('vid');
+
+/* ---------- 설정 ---------- */
+// up: 무릎을 이만큼(몸통 길이 비율) 들어야 한 걸음, stride: 한 걸음에 나아가는 거리(m)
+const LIFT={low:{up:.14,stride:1.35},mid:{up:.2,stride:1.35},high:{up:.28,stride:1.35}};
+const LIMIT=60; // 한 사람 최대 시간(초)
+const S={nameC:'청',nameB:'백',dist:50,rounds:2,lift:'mid',cam:'user',mirror:true,sound:true};
+try{Object.assign(S,JSON.parse(localStorage.getItem('dash50.v1')||'{}'))}catch(e){}
+function loadForm(){$('nameC').value=S.nameC;$('nameB').value=S.nameB;$('selDist').value=S.dist;$('selRounds').value=S.rounds;$('selLift').value=S.lift;
+  $('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
+function readForm(){S.nameC=$('nameC').value.trim()||'청';S.nameB=$('nameB').value.trim()||'백';S.dist=+$('selDist').value;S.rounds=+$('selRounds').value;
+  S.lift=$('selLift').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
+  try{localStorage.setItem('dash50.v1',JSON.stringify(S))}catch(e){}}
+loadForm();
+document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기 청백전`;
+$('selDist').addEventListener('change',e=>{document.querySelector('h1').innerHTML=`<span class="r">${e.target.value}m</span> 달리기 청백전`});
+
+/* ---------- 소리 ---------- */
+let AC=null;
+function beep(freq,dur=.12,type='square',vol=.12,slide=0){
+  if(!S.sound||!AC)return;
+  const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(AC.destination);o.start(t);o.stop(t+dur+.02);
+}
+function noise(dur,freq,type,vol){
+  if(!S.sound||!AC)return;
+  const len=Math.floor(AC.sampleRate*dur),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
+  const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=buf;f.type=type;f.frequency.value=freq;g.gain.value=vol;
+  s.connect(f).connect(g).connect(AC.destination);s.start();
+}
+const sfx={
+  ready:()=>beep(440,.12,'sine',.12),
+  gun:()=>{noise(.5,1200,'lowpass',1.2);noise(.15,4000,'highpass',.5)},
+  step:i=>{noise(.04,i?260:200,'lowpass',.5)},
+  whistle:()=>{beep(2100,.25,'square',.08);setTimeout(()=>beep(2100,.25,'square',.08),300)},
+  finish:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.18,'triangle',.15),i*90)),
+  win:()=>[523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,.25,'triangle',.16),i*130))};
+
+/* ---------- 카메라·자세 인식 ---------- */
+let pose=null, stream=null, lm=null, lmTime=0, detecting=false;
+async function initPose(){
+  if(pose)return;
+  if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
+  pose=new Pose({locateFile:f=>POSE_BASE+f});
+  pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  pose.onResults(r=>{lm=r.poseLandmarks||null;lmTime=performance.now()});
+  await pose.initialize();
+}
+async function startCamera(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 주소로 열어 주세요.');
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:S.cam,width:{ideal:1280},height:{ideal:720}}});
+  vid.srcObject=stream;await vid.play();
+}
+async function detectLoop(){
+  if(detecting)return;detecting=true;
+  while(detecting){
+    if(vid.readyState>=2&&pose){try{await pose.send({image:vid})}catch(e){}}
+    await new Promise(r=>requestAnimationFrame(r));
+  }
+}
+
+/* ---------- 화면 좌표 ---------- */
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+window.addEventListener('resize',resize);resize();
+function fit(){const vw=vid.videoWidth||1280,vh=vid.videoHeight||720,s=Math.max(W/vw,H/vh);return{dw:vw*s,dh:vh*s,ox:(W-vw*s)/2,oy:(H-vh*s)/2}}
+function toScreen(p,f){const x=S.mirror?1-p.x:p.x;return{x:f.ox+x*f.dw,y:f.oy+p.y*f.dh,v:p.visibility==null?1:p.visibility}}
+
+/* ---------- 걸음 세기 ---------- */
+// 무릎(25·26)이 같은 쪽 엉덩이(23·24)에 얼마나 가까워졌는지로 무릎 들기를 판단
+const legs=[{hip:23,knee:25,ank:27,base:null,up:false,minRel:9,flash:0},{hip:24,knee:26,ank:28,base:null,up:false,minRel:9,flash:0}];
+function readBody(f){
+  if(!lm||performance.now()-lmTime>600)return null;
+  const P=i=>toScreen(lm[i],f);
+  const ls=P(11),rs=P(12),lh=P(23),rh=P(24);
+  if(Math.min(ls.v,rs.v,lh.v,rh.v)<.4)return null;
+  const torso=Math.max(30,Math.hypot((ls.x+rs.x-lh.x-rh.x)/2,(ls.y+rs.y-lh.y-rh.y)/2));
+  const lk=P(25),rk=P(26);
+  return{P,torso,kneesOk:lk.v>.45&&rk.v>.45};
+}
+function resetLegs(){for(const g of legs){g.base=null;g.up=false;g.minRel=9;g.flash=0}}
+function trackLegs(b,now,onStep){ // 새 인식 결과마다 호출
+  const T=LIFT[S.lift].up;
+  for(let i=0;i<2;i++){
+    const g=legs[i],hip=b.P(g.hip),k=b.P(g.knee);if(k.v<.45)continue;
+    const rel=(k.y-hip.y)/b.torso; // 서 있으면 크고, 무릎을 들면 작아짐
+    if(g.base==null)g.base=rel;
+    if(rel>g.base)g.base=rel;else if(!g.up)g.base+=(rel-g.base)*.01; // 서 있는 높이를 천천히 따라감
+    if(!g.up&&rel<g.base-T){g.up=true;g.minRel=rel;g.flash=now;onStep(i,now)}
+    else if(g.up){g.minRel=Math.min(g.minRel,rel);if(rel>g.base-T*.45)g.up=false}
+  }
+}
+
+/* ---------- 게임 상태 ---------- */
+const G={phase:'setup',round:1,team:'c',res:{c:[],b:[]},d:0,dDisp:0,steps:0,stepTimes:[],t0:0,elapsed:0,
+  trace:[],ghost:null,lastLm:0,startSeq:null,falseCount:0,finishT:null};
+function teamName(t){return t==='c'?S.nameC:S.nameB}
+function show(id,on){$(id).hidden=!on}
+function coach(txt,opt={}){const c=$('coach');if(!txt){c.hidden=true;return}c.hidden=false;c.textContent=txt;c.className=(opt.small?'small ':'')+(opt.warn?'warn':'')}
+
+function onStep(i,now){
+  if(G.phase==='marks'){G.stillSince=now;coach('가만히 서세요',{small:true,warn:true});return}
+  if(G.phase==='set'){falseStart(now);return}
+  if(G.phase!=='run')return;
+  G.steps++;G.stepTimes.push(now);
+  G.d=Math.min(S.dist,G.d+LIFT[S.lift].stride);
+  sfx.step(i);
+  if(G.d>=S.dist&&G.finishT==null){G.finishT=(now-G.t0)/1000;finish(now)}
+}
+function falseStart(now){
+  G.falseCount++;sfx.whistle();
+  G.phase='false';coach('부정 출발!',{warn:true});
+  setTimeout(()=>{if(G.phase==='false')startSequence()},1800);
+}
+
+/* ---------- 출발 신호: 차렷 → 준비 → 탕! ---------- */
+function startSequence(){
+  G.phase='marks';G.d=0;G.dDisp=0;G.steps=0;G.stepTimes=[];G.trace=[];G.finishT=null;resetLegs();
+  coach('제자리에 서세요');G.seqAt=performance.now();G.stillSince=0;
+}
+function seqTick(now,b){
+  if(G.phase==='marks'){
+    if(!b){coach('온몸이 화면에 보이게 서 주세요',{small:true,warn:true});G.stillSince=0;return}
+    if(!b.kneesOk){coach('무릎까지 보이게 뒤로 물러서 주세요',{small:true,warn:true});G.stillSince=0;return}
+    if(!G.stillSince)G.stillSince=now;
+    if(now-G.stillSince>400)coach('차렷');
+    if(now-G.stillSince>1200){G.phase='set';G.setAt=now;G.gunAt=now+1000+Math.random()*1500;coach('준비');sfx.ready()}
+  }else if(G.phase==='set'){
+    if(now>=G.gunAt){G.phase='run';G.t0=now;coach('탕!');sfx.gun();setTimeout(()=>{if(G.phase==='run')coach('')},700)}
+  }
+}
+function finish(now){
+  G.phase='finished';sfx.finish();
+  coach(`골인! ${G.finishT.toFixed(2)}초`);
+  setTimeout(endTurn,1600);
+}
+function giveUp(now){ // 제한 시간 안에 못 들어옴
+  G.phase='finished';G.finishT=null;sfx.whistle();coach('시간 끝!',{warn:true});
+  setTimeout(endTurn,1600);
+}
+
+/* ---------- 그리기 ---------- */
+function drawVideo(f){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(vid.readyState<2)return;
+  ctx.save();
+  if(S.mirror){ctx.translate(W,0);ctx.scale(-1,1);ctx.drawImage(vid,W-f.ox-f.dw,f.oy,f.dw,f.dh)}
+  else ctx.drawImage(vid,f.ox,f.oy,f.dw,f.dh);
+  ctx.restore();
+}
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+function drawSkeleton(f,now){
+  if(!lm||performance.now()-lmTime>600)return;
+  const P=i=>toScreen(lm[i],f),col=G.team==='c'?'#3b6dff':'#ffffff',edge=G.team==='c'?'rgba(255,255,255,.7)':'rgba(20,24,40,.8)';
+  const lw=Math.max(3,Math.min(W,H)*.006);ctx.lineCap='round';
+  for(const pass of [0,1]){ctx.strokeStyle=pass?col:edge;ctx.lineWidth=pass?lw:lw+3;ctx.beginPath();
+    for(const[a,b]of BONES){const p=P(a),q=P(b);if(p.v<.35||q.v<.35)continue;ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y)}ctx.stroke()}
+  for(const g of legs){const k=P(g.knee);if(k.v<.45)continue;
+    const fl=now-g.flash<220;ctx.beginPath();ctx.arc(k.x,k.y,lw*(fl?5:2.6),0,Math.PI*2);ctx.fillStyle=fl?'#ffd23f':col;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke()}
+}
+function trackGeom(){
+  const th=Math.max(80,Math.min(140,H*.17)),y=H-th-Math.max(8,0);
+  const x0=Math.max(56,W*.07),x1=W-Math.max(56,W*.07);
+  return{y,th,x0,x1};
+}
+function drawTrack(now){
+  if(G.phase==='setup'||G.phase==='final')return;
+  const t=trackGeom(),laneH=t.th/2;
+  ctx.save();
+  ctx.fillStyle='rgba(196,71,46,.78)';ctx.fillRect(0,t.y,W,t.th);
+  ctx.strokeStyle='rgba(246,239,230,.85)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,t.y+1);ctx.lineTo(W,t.y+1);ctx.moveTo(0,t.y+laneH);ctx.lineTo(W,t.y+laneH);ctx.moveTo(0,t.y+t.th-1);ctx.lineTo(W,t.y+t.th-1);ctx.stroke();
+  // 거리 표시
+  ctx.fillStyle='rgba(255,255,255,.85)';ctx.font=`${Math.round(Math.max(11,t.th*.13))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';
+  const step=S.dist<=50?10:20;
+  for(let m=0;m<=S.dist;m+=step){const x=t.x0+(t.x1-t.x0)*m/S.dist;ctx.globalAlpha=.5;ctx.fillRect(x-1,t.y,2,t.th);ctx.globalAlpha=1;
+    if(m>0&&m<S.dist)ctx.fillText(m+'m',x,t.y+t.th-6)}
+  // 출발선·결승선
+  ctx.fillStyle='#fff';ctx.fillRect(t.x0-3,t.y,6,t.th);
+  const cs=Math.max(6,t.th/10);
+  for(let i=0;i<t.th/cs;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#111':'#fff';ctx.fillRect(t.x1+j*cs-cs,t.y+i*cs,cs,cs)}
+  // 그림자 선수(상대 기록)
+  const sz=laneH*.82;
+  ctx.font=`${Math.round(sz)}px sans-serif`;ctx.textBaseline='middle';
+  if(G.ghost&&(G.phase==='run'||G.phase==='finished')){
+    const el=G.phase==='run'?(now-G.t0)/1000:G.elapsed;
+    const gd=ghostAt(el);
+    const gx=t.x0+(t.x1-t.x0)*gd/S.dist;
+    ctx.save();ctx.globalAlpha=.55;ctx.translate(gx,t.y+laneH*.5);ctx.scale(-1,1);ctx.fillText('🏃',0,0);ctx.restore();
+    ctx.globalAlpha=.9;ctx.fillStyle=G.ghost.team==='c'?'#9bb6ff':'#fff';ctx.font=`${Math.round(laneH*.32)}px 'Black Han Sans',sans-serif`;
+    ctx.textAlign='left';ctx.fillText(teamName(G.ghost.team)+' 기록',8,t.y+laneH*.5);ctx.globalAlpha=1;
+  }
+  // 내 선수
+  const mx=t.x0+(t.x1-t.x0)*G.dDisp/S.dist, bob=G.phase==='run'?Math.sin(now/70)*laneH*.06:0;
+  ctx.font=`${Math.round(sz)}px sans-serif`;ctx.textAlign='center';
+  ctx.save();ctx.translate(mx,t.y+laneH*1.5+bob);ctx.scale(-1,1);ctx.fillText('🏃',0,0);ctx.restore();
+  ctx.fillStyle=G.team==='c'?'#3b6dff':'#fff';ctx.beginPath();ctx.arc(mx,t.y+laneH*1.5-sz*.62,Math.max(5,laneH*.1),0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font=`${Math.round(laneH*.32)}px 'Black Han Sans',sans-serif`;ctx.textAlign='left';
+  ctx.fillText(teamName(G.team),8,t.y+laneH*1.5);
+  ctx.restore();
+}
+function ghostAt(sec){ // 상대 기록에서 sec초일 때의 거리
+  const tr=G.ghost.trace;if(!tr.length)return 0;
+  if(sec>=tr[tr.length-1][0])return tr[tr.length-1][1];
+  for(let i=1;i<tr.length;i++)if(tr[i][0]>=sec){const a=tr[i-1],b=tr[i],k=(sec-a[0])/Math.max(.001,b[0]-a[0]);return a[1]+(b[1]-a[1])*k}
+  return 0;
+}
+function cadence(now){const ts=G.stepTimes.filter(t=>now-t<2000);return ts.length/2}
+function updateHud(now){
+  const el=G.phase==='run'?(now-G.t0)/1000:G.phase==='finished'?(G.finishT??G.elapsed):0;
+  $('clock').textContent=el.toFixed(2);
+  const chip=$('teamChip');chip.textContent=`${teamName(G.team)} ${G.d.toFixed(1)}m / ${S.dist}m`;chip.classList.toggle('baek',G.team==='b');
+  $('roundTag').textContent=`${G.round} / ${S.rounds} 라운드`+(G.phase==='run'?`\n1초에 ${cadence(now).toFixed(1)}걸음`:'');
+}
+
+/* ---------- 매 프레임 ---------- */
+function frame(now){
+  const f=fit();
+  drawVideo(f);
+  const b=(G.phase!=='setup'&&G.phase!=='final')?readBody(f):null;
+  if(b&&lmTime!==G.lastLm){G.lastLm=lmTime;trackLegs(b,now,onStep)}
+  if(G.phase==='marks'||G.phase==='set')seqTick(now,b);
+  if(G.phase==='run'){
+    G.elapsed=(now-G.t0)/1000;
+    if(!G.trace.length||G.elapsed-G.trace[G.trace.length-1][0]>.1)G.trace.push([+G.elapsed.toFixed(2),G.d]);
+    if(!b&&G.elapsed>1)coach('몸이 화면 밖으로 나갔어요',{small:true,warn:true});
+    else if(b&&!b.kneesOk&&G.elapsed>1)coach('무릎이 보이게 서 주세요',{small:true,warn:true});
+    else if(G.elapsed>.8&&$('coach').classList.contains('small'))coach('');
+    if(G.elapsed>=LIMIT)giveUp(now);
+  }
+  G.dDisp+=(G.d-G.dDisp)*.18;
+  drawTrack(now);
+  drawSkeleton(f,now);
+  if(G.phase!=='setup'&&G.phase!=='final')updateHud(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- 흐름 ---------- */
+function allHidden(){['ovSetup','ovReady','ovTurn','ovFinal'].forEach(id=>show(id,false))}
+function opponentRecord(){ // 같은 라운드 상대 팀 기록(먼저 뛴 팀)
+  const other=G.team==='c'?'b':'c',r=G.res[other][G.round-1];
+  if(r)return{team:other,trace:r.trace,time:r.time};
+  // 첫 라운드 청팀은 이전 라운드 백팀 기록을 그림자로
+  const prev=G.res.b[G.round-2];return prev?{team:'b',trace:prev.trace,time:prev.time}:null;
+}
+function goReady(){
+  G.phase='ready';G.d=0;G.dDisp=0;G.steps=0;G.falseCount=0;G.finishT=null;G.trace=[];G.elapsed=0;
+  G.ghost=opponentRecord();
+  allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);coach('');
+  $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · ${S.dist}m`;
+  const rt=$('readyTeam');rt.textContent=`${teamName(G.team)} 차례`;rt.className='big-turn '+G.team;
+  $('readyGhost').textContent=G.ghost?`그림자 선수: ${teamName(G.ghost.team)} ${G.ghost.time!=null?G.ghost.time.toFixed(2)+'초':'기록 없음'}`:'신호 "탕!"이 울리면 무릎을 높이 들며 뛰어요';
+  $('btnGo').className='btn '+(G.team==='c'?'blue':'white');$('btnGo').focus();
+}
+function goLine(){if(G.phase!=='ready')return;allHidden();startSequence()}
+function endTurn(){
+  if(G.phase!=='finished')return;
+  G.phase='turnEnd';coach('');
+  const ri=G.round-1,time=G.finishT;
+  G.res[G.team][ri]={time,d:G.d,steps:G.steps,trace:G.trace.slice()};
+  allHidden();show('ovTurn',true);
+  const tt=$('turnTeam');tt.textContent=teamName(G.team);tt.className='big-turn '+G.team;
+  $('turnScore').textContent=time!=null?`${time.toFixed(2)}초`:`${G.d.toFixed(1)}m (시간 끝)`;
+  $('turnSteps').textContent=G.steps;
+  $('turnCad').textContent=(time?G.steps/time:G.steps/LIMIT).toFixed(1);
+  const other=G.team==='c'?'b':'c',o=G.res[other][ri];
+  $('turnVs').textContent=o&&o.time!=null&&time!=null?(time<o.time?`${teamName(other)}보다 ${(o.time-time).toFixed(2)}초 빨라요! 🎉`:time>o.time?`${teamName(other)}보다 ${(time-o.time).toFixed(2)}초 느려요`:'똑같은 기록!'):'';
+  const last=G.team==='b'&&G.round>=S.rounds;
+  $('btnNext').textContent=last?'최종 결과 보기':`${teamName(G.team==='c'?'b':'c')} 차례로`;
+  setTimeout(()=>$('btnNext').focus(),50);
+}
+function next(){
+  if(G.team==='c'){G.team='b'}
+  else{if(G.round>=S.rounds){final();return}G.round++;G.team='c'}
+  goReady();
+}
+function final(){
+  G.phase='final';allHidden();show('ovFinal',true);show('hud',false);show('roundTag',false);coach('');
+  const tv=r=>r&&r.time!=null?r.time:LIMIT+ (S.dist-(r?r.d:0)); // 못 들어오면 큰 값
+  let wc=0,wb=0,sc=0,sb=0,rows='';
+  for(let i=0;i<S.rounds;i++){
+    const c=G.res.c[i],b=G.res.b[i],a=tv(c),z=tv(b);sc+=a;sb+=z;
+    if(a<z)wc++;else if(z<a)wb++;
+    const fmt=r=>r?(r.time!=null?r.time.toFixed(2)+'초':r.d.toFixed(1)+'m'):'-';
+    rows+=`<tr><td>${i+1}</td><td class="c">${a<z?'<span class="win">★</span> ':''}${fmt(c)}</td><td class="b">${z<a?'<span class="win">★</span> ':''}${fmt(b)}</td></tr>`;
+  }
+  const w=$('winner');
+  const win=wc>wb?'c':wb>wc?'b':(sc<sb?'c':sb<sc?'b':'d');
+  if(win==='d'){w.textContent='무승부!';w.className='winner d'}else{w.textContent=`${teamName(win)} 우승!`;w.className='winner '+win}
+  $('tbl').innerHTML=`<tr><th>라운드</th><th>${esc(S.nameC)}</th><th>${esc(S.nameB)}</th></tr>${rows}<tr class="total"><td>승</td><td class="c">${wc}승</td><td class="b">${wb}승</td></tr>`;
+  sfx.win();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function newMatch(){G.round=1;G.team='c';G.res={c:[],b:[]};goReady()}
+function toSetup(){G.phase='setup';allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);coach('');loadForm()}
+
+let wake=null;
+async function keepAwake(){try{if('wakeLock'in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>wake=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&G.phase!=='setup')keepAwake()});
+
+let camFacing=null;
+$('btnStart').addEventListener('click',async()=>{
+  readForm();document.querySelector('h1').innerHTML=`<span class="r">${S.dist}m</span> 달리기 청백전`;
+  const btn=$('btnStart'),msg=$('setupMsg');
+  try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
+  btn.disabled=true;
+  try{
+    if(!stream||camFacing!==S.cam){msg.textContent='카메라를 켜는 중…';await startCamera();camFacing=S.cam}
+    if(!pose){msg.textContent='동작 인식 준비 중… (처음엔 10초쯤 걸려요)';await initPose()}
+    detectLoop();msg.textContent='';keepAwake();newMatch();
+  }catch(e){
+    console.error(e);
+    msg.textContent=(e&&e.name==='NotAllowedError')?'카메라가 막혀 있어요. 크롬에서 주소(https://…)로 열고, 주소창 옆 자물쇠에서 카메라를 허용해 주세요.'
+      :(e&&e.name==='NotFoundError')?'카메라를 찾지 못했어요.':(e&&e.message)||'시작하지 못했어요. 다시 눌러 주세요.';
+  }finally{btn.disabled=false}
+});
+$('btnGo').addEventListener('click',goLine);
+$('btnNext').addEventListener('click',next);
+$('btnAgain').addEventListener('click',newMatch);
+$('btnSetup').addEventListener('click',toSetup);
+$('btnHome').addEventListener('click',toSetup);
+$('btnFull').addEventListener('click',()=>{
+  try{if(document.fullscreenElement)document.exitFullscreen();else{const r=(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen).call(document.documentElement);if(r&&r.catch)r.catch(()=>{})}}catch(e){}
+});
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','BUTTON'].includes(e.target.tagName))return;
+  if(e.code!=='Space'&&e.code!=='Enter')return;
+  if(G.phase==='ready'){e.preventDefault();goLine()}
+  else if(G.phase==='turnEnd'){e.preventDefault();next()}
+});
+})();
+</script>
+</body>
+</html>
