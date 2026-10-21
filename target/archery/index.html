@@ -182,6 +182,10 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -214,13 +218,38 @@ const PE=(()=>{
       <a href="../" style="margin-left:auto;color:inherit;font-size:14px">모둠 바꾸기 ›</a></div>`;
   }
   // 차례 순서: 1라운드 1모둠→2모둠→…, 2라운드 …
+  // 게임마다 시작 모둠을 돌려서 공평하게 (지금까지 끝난 게임 수 기준)
+  function start(){const d=read();const n=d&&Array.isArray(d.history)?d.history.length:0;return n%teams.length}
+  function begin(st){st.k=0;st.round=1;st.team=start()}
   function nextTurn(st,rounds){
-    st.team++;
-    if(st.team>=teams.length){st.team=0;st.round++}
+    st.k=(st.k||0)+1;
+    st.team=(st.team+1)%teams.length;
+    st.round=Math.floor(st.k/teams.length)+1;
     return st.round>rounds;
   }
-  function isLast(st,rounds){return st.team===teams.length-1&&st.round>=rounds}
+  function isLast(st,rounds){return (st.k||0)===teams.length*rounds-1}
   function nextName(st){return name((st.team+1)%teams.length)}
+  /* 넘을 기록: 차례 시작 때 setTarget(값, 모둠, 글자 만들기), 매 프레임 beat(현재값) → 처음 넘는 순간 true */
+  const T={best:null,team:null,fmt:v=>v,led:false,el:null,higher:true};
+  function setTarget(best,team,fmt,higher=true){
+    T.best=best;T.team=team;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
+    if(!T.el){T.el=document.createElement('div');T.el.id='beat';T.el.style.cssText='font-size:clamp(13px,2.6vmin,20px);padding:.2em .8em;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);font-variant-numeric:tabular-nums;white-space:nowrap';
+      const box=document.querySelector('#hud .hud-box')||document.getElementById('hud');if(box)box.appendChild(T.el)}
+    T.el.hidden=false;
+    T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록 ${name(team)} ${T.fmt(best)}`;
+    T.el.style.background='rgba(0,0,0,.55)';
+  }
+  function beat(cur){
+    if(!T.el||T.el.hidden)return false;
+    if(T.best==null){return false}
+    const ahead=T.higher?cur>T.best:cur<T.best;
+    if(ahead&&!T.led){T.led=true;T.el.textContent='1등으로 달리는 중! 🥇';T.el.style.background='rgba(232,168,0,.9)';T.el.style.color='#2a1f00';return true}
+    if(!ahead&&T.led){T.led=false;T.el.textContent=`넘을 기록 ${name(T.team)} ${T.fmt(T.best)}`;T.el.style.background='rgba(0,0,0,.55)';T.el.style.color='#fff'}
+    return false;
+  }
+  function hideTarget(){if(T.el)T.el.hidden=true}
+  // 끝난 차례 중 가장 좋은 값 찾기: list=[[값,모둠],...]
+  function bestOf(list,higher=true){let b=null;for(const[v,i]of list){if(v==null)continue;if(b==null||(higher?v>b[0]:v<b[0]))b=[v,i]}return b}
   /* 최종 순위표
      opt.rounds, opt.cell(i,r)→표에 쓸 글자, opt.total(i)→합계 숫자, opt.fmtTotal(v),
      opt.higherBetter(기본 true), opt.tie(i)→같을 때 비교 숫자(클수록 좋음), opt.extra:[{label,cell(i)}] */
@@ -263,7 +292,7 @@ const PE=(()=>{
     a.style.textAlign='center';a.style.textDecoration='none';a.style.display='flex';a.style.alignItems='center';a.style.justifyContent='center';
     rowEl.insertBefore(a,rowEl.firstChild);
   }
-  return{teams,count:()=>teams.length,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
+  return{teams,count:()=>teams.length,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
 })();
 </script>
 <script>
@@ -532,7 +561,9 @@ function drawFx(){
   }
   ctx.globalAlpha=1;
 }
+function lead(){[784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.15,'triangle',.14),i*90));G.fx&&G.fx.push({x:W/2,y:H*.3,vy:-.5,life:1,txt:'1등으로!',col:'#ffd23f',kind:'t',size:Math.max(40,Math.min(W,H)*.09)})}
 function updateHud(){
+  if(G.phase==='play'&&PE.beat(G.shots.reduce((a,b)=>a+(b||0),0)))lead();
   $('timer').textContent=Math.ceil(G.left);
   $('timer').classList.toggle('warn',G.phase==='play'&&G.left<=5);
   const sum=G.shots.reduce((a,b)=>a+b,0);
@@ -591,7 +622,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';G.shots=[];G.arrowNo=0;G.stuck=[];G.state='idle';G.power=0;G.flying=null;G.left=ARROW_TIME;
+  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map(r=>[r?r.sum:null,i])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'점',true)}G.shots=[];G.arrowNo=0;G.stuck=[];G.state='idle';G.power=0;G.flying=null;G.left=ARROW_TIME;
   placeTarget(fit());newWind();
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · 화살 ${S.arrows}발`;
@@ -626,6 +657,7 @@ function next(){
   goReady();
 }
 function final(){
+  PE.hideTarget();
   G.phase='final';G.target=null;allHidden();show('ovFinal',true);show('hud',false);show('roundTag',false);coach('');
   const tens=i=>G.res[i].reduce((a,r)=>a+(r?r.shots.filter(s=>s===10).length:0),0);
   const rank=PE.final($('tbl'),$('winner'),{rounds:S.rounds,cell:(i,r)=>G.res[i][r]?G.res[i][r].sum:'-',
@@ -633,7 +665,7 @@ function final(){
   PE.save('archery','양궁',rank);PE.hubButton($('ovFinal').querySelector('.row'));sfx.win();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function newMatch(){G.round=1;G.team=0;G.res=PE.teams.map(()=>[]);G.fx=[];goReady()}
+function newMatch(){PE.begin(G);G.res=PE.teams.map(()=>[]);G.fx=[];goReady()}
 function toSetup(){G.phase='setup';G.target=null;allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);coach('');loadForm()}
 
 let wake=null;
