@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>카메라 점검</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 화면 전체가 카메라, 왼쪽 위에 점검표, 아래에 안내·버튼 */
+:root{
+  --ok:#22c46b; --bad:#ff3b4e; --wait:#ffd23f;
+  --ink:#0b1020; --panel:#121a33; --panel-2:#1b2547; --line:#2c3a6b; --text:#eef2ff; --muted:#9aa7d1;
+  --display:'Black Han Sans','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font-family:var(--body);overflow:hidden;-webkit-user-select:none;user-select:none}
+#stage{position:fixed;inset:0;background:#000;overflow:hidden}
+#cv{width:100%;height:100%;display:block;position:relative;z-index:0}
+#stage::before{content:'';position:absolute;left:0;right:0;top:0;height:min(30vh,220px);background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));pointer-events:none;z-index:1}
+video{display:none}
+#list{position:fixed;left:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) 0 0 max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:min(92vw,420px)}
+.chk{display:flex;align-items:center;gap:10px;background:rgba(10,16,40,.72);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:7px 12px 7px 8px;font-size:clamp(14px,2.6vmin,19px);backdrop-filter:blur(4px)}
+.chk i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:15px;flex:none;background:var(--wait);color:#2a1f00;font-family:var(--display)}
+.chk.ok i{background:var(--ok);color:#fff}.chk.bad i{background:var(--bad);color:#fff}
+.chk small{color:var(--muted);font-size:.8em;margin-left:auto;padding-left:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#tools{position:fixed;right:0;top:0;display:flex;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 0;z-index:3}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(10,16,40,.6);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center}
+#bottom{position:fixed;left:0;right:0;bottom:0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;align-items:center;gap:10px;z-index:2;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.6))}
+#verdict{font-family:var(--display);font-size:clamp(22px,5vmin,40px);text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 16px rgba(0,0,0,.6);text-align:center;line-height:1.15}
+#tip{font-size:clamp(14px,2.6vmin,20px);background:rgba(10,16,40,.8);padding:7px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.2);text-align:center;max-width:92vw}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn{font-family:var(--display);font-size:clamp(17px,3.6vmin,24px);border:0;border-radius:12px;padding:11px 18px;cursor:pointer;background:var(--ok);color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.35);min-height:48px;text-decoration:none;display:inline-flex;align-items:center}
+.btn.ghost{background:rgba(10,16,40,.75);border:1px solid rgba(255,255,255,.3)}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(6,10,26,.7);z-index:4;padding:16px}
+.panel{width:100%;max-width:520px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,28px);display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,7vw,42px);margin:0;line-height:1.05}
+.sub{color:var(--muted);margin:0;line-height:1.55;font-size:15px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px}
+.check{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}
+.check input{width:22px;height:22px}
+.msg{font-size:14px;color:var(--wait);min-height:1.2em;margin:0}
+.btn.big{font-size:clamp(20px,4.6vw,28px);padding:14px 18px;min-height:56px;justify-content:center}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<video id="vid" playsinline muted></video>
+<div id="list" hidden>
+  <div class="chk" id="c1"><i>1</i>카메라 켜짐<small id="s1"></small></div>
+  <div class="chk" id="c2"><i>2</i>사람 인식<small id="s2"></small></div>
+  <div class="chk" id="c3"><i>3</i>온몸이 다 보임<small id="s3"></small></div>
+  <div class="chk" id="c4"><i>4</i>밝기<small id="s4"></small></div>
+  <div class="chk" id="c5"><i>5</i>인식 속도<small id="s5"></small></div>
+  <div class="chk" id="c6"><i>6</i>움직임 반응<small id="s6"></small></div>
+</div>
+<div id="tools"><button class="icon-btn" id="btnFull" title="전체 화면" aria-label="전체 화면">⛶</button></div>
+<div id="bottom" hidden>
+  <div id="verdict"></div>
+  <div id="tip"></div>
+  <div class="row"><a class="btn" href="../" id="btnHub">대회 첫 화면으로</a><button class="btn ghost" id="btnAgain">다시 점검</button></div>
+</div>
+
+<div class="overlay" id="ovSetup">
+  <div class="panel">
+    <h1>카메라 점검</h1>
+    <p class="sub">게임을 시작하기 전에 카메라가 잘 되는지 6가지를 확인해요. 기기를 세워 두고 평소 게임하듯 서 보세요.</p>
+    <label class="f">카메라
+      <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
+    <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <button class="btn big" id="btnStart">점검 시작</button>
+    <p class="msg" id="setupMsg"></p>
+    <p class="sub">카메라 영상은 저장하거나 밖으로 보내지 않아요.</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script>
+(()=>{
+const POSE_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d'),vid=$('vid');
+const S={cam:'user',mirror:true};
+try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam)S.cam=g.cam}catch(e){}
+$('selCam').value=S.cam;
+
+let pose=null,stream=null,lm=null,lmTime=0,detecting=false,errName='';
+async function initPose(){
+  if(pose)return;
+  if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
+  pose=new Pose({locateFile:f=>POSE_BASE+f});
+  pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  pose.onResults(r=>{lm=r.poseLandmarks||null;const t=performance.now();if(lmTime)fpsSamples.push(1000/(t-lmTime));if(fpsSamples.length>40)fpsSamples.shift();lmTime=t});
+  await pose.initialize();
+}
+async function startCamera(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 주소(https://…)로 열어 주세요.');
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:S.cam,width:{ideal:1280},height:{ideal:720}}});
+  vid.srcObject=stream;await vid.play();
+}
+async function detectLoop(){
+  if(detecting)return;detecting=true;
+  while(detecting){
+    if(vid.readyState>=2&&pose){try{await pose.send({image:vid})}catch(e){}}
+    await new Promise(r=>requestAnimationFrame(r));
+  }
+}
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+window.addEventListener('resize',resize);resize();
+function fit(){const vw=vid.videoWidth||1280,vh=vid.videoHeight||720,s=Math.max(W/vw,H/vh);return{dw:vw*s,dh:vh*s,ox:(W-vw*s)/2,oy:(H-vh*s)/2}}
+function toScreen(p,f){const x=S.mirror?1-p.x:p.x;return{x:f.ox+x*f.dw,y:f.oy+p.y*f.dh,v:p.visibility==null?1:p.visibility}}
+
+/* ---------- 점검 ---------- */
+const fpsSamples=[];
+const R={cam:null,person:null,full:null,light:null,fps:null,move:null};
+let running=false,t0=0,wristHist=[],moveDone=false,moveStart=0;
+const sampleCv=document.createElement('canvas');sampleCv.width=64;sampleCv.height=36;const sctx=sampleCv.getContext('2d',{willReadFrequently:true});
+function brightness(){
+  if(vid.readyState<2)return null;
+  sctx.drawImage(vid,0,0,64,36);const d=sctx.getImageData(0,0,64,36).data;let s=0;
+  for(let i=0;i<d.length;i+=4)s+=d[i]*.299+d[i+1]*.587+d[i+2]*.114;
+  return s/(d.length/4);
+}
+function setChk(n,state,small){const el=$('c'+n);el.className='chk'+(state===true?' ok':state===false?' bad':'');el.querySelector('i').textContent=state===true?'✓':state===false?'✗':n;$('s'+n).textContent=small||''}
+function evaluate(now){
+  const f=fit();
+  // 1 카메라
+  R.cam=vid.readyState>=2&&!!stream;setChk(1,R.cam,R.cam?`${vid.videoWidth}×${vid.videoHeight}`:'');
+  // 2 사람
+  const fresh=lm&&now-lmTime<700;
+  const P=i=>toScreen(lm[i],f);
+  R.person=!!fresh&&lm[11].visibility>.5&&lm[12].visibility>.5;setChk(2,fresh?R.person:null,fresh?(R.person?'어깨 보임':'어깨 안 보임'):'');
+  // 3 온몸: 코·양 발목이 보이고 화면 안에 있어야
+  if(R.person){
+    const n=P(0),la=P(27),ra=P(28);
+    const inside=p=>p.x>0&&p.x<W&&p.y>0&&p.y<H;
+    const head=n.v>.5&&inside(n),feet=la.v>.5&&ra.v>.5&&inside(la)&&inside(ra);
+    R.full=head&&feet;
+    const shW=Math.hypot(P(11).x-P(12).x,P(11).y-P(12).y);
+    const bodyH=feet&&head?Math.abs(((la.y+ra.y)/2)-n.y):0;
+    let why=R.full?`키가 화면의 ${Math.round(bodyH/H*100)}%`:!head?'머리가 안 보여요':'발이 안 보여요';
+    if(R.full&&bodyH/H>.92){R.full=false;why='너무 가까워요'}
+    if(R.full&&bodyH/H<.35){R.full=false;why='너무 멀어요'}
+    setChk(3,R.full,why);
+  }else{R.full=null;setChk(3,null,'')}
+  // 4 밝기
+  const b=brightness();
+  if(b!=null){R.light=b>=60&&b<=215;setChk(4,R.light,b<60?'어두워요':b>215?'너무 밝아요(역광)':`밝기 ${Math.round(b)}`)}
+  // 5 속도
+  if(fpsSamples.length>=10){const fps=fpsSamples.slice(-20).reduce((a,c)=>a+c,0)/Math.min(20,fpsSamples.length);R.fps=fps>=12;setChk(5,fps>=18?true:fps>=12?true:false,`${fps.toFixed(0)} fps${fps<18&&fps>=12?' (조금 느림)':''}`)}
+  // 6 움직임: 손목을 어깨 위로 올렸다 내리기
+  if(R.person){
+    const lw=P(15),rw=P(16),sh=(P(11).y+P(12).y)/2;
+    const up=(lw.v>.5&&lw.y<sh-20)||(rw.v>.5&&rw.y<sh-20);
+    if(!moveDone){
+      if(up&&!moveStart)moveStart=now;
+      if(moveStart&&!up&&now-moveStart>150){moveDone=true;R.move=true}
+      setChk(6,moveDone?true:null,moveDone?'':up?'좋아요, 이제 내려요':'한 손을 머리 위로 들어요');
+    }else setChk(6,true,'확인됨');
+  }
+}
+function drawVideo(f){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(vid.readyState<2)return;
+  ctx.save();
+  if(S.mirror){ctx.translate(W,0);ctx.scale(-1,1);ctx.drawImage(vid,W-f.ox-f.dw,f.oy,f.dw,f.dh)}
+  else ctx.drawImage(vid,f.ox,f.oy,f.dw,f.dh);
+  ctx.restore();
+}
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
+function drawSkeleton(f,now){
+  if(!lm||now-lmTime>700)return;
+  const P=i=>toScreen(lm[i],f),lw=Math.max(3,Math.min(W,H)*.006);ctx.lineCap='round';
+  const col=R.full?'#22c46b':'#ffd23f';
+  for(const pass of [0,1]){ctx.strokeStyle=pass?col:'rgba(0,0,0,.6)';ctx.lineWidth=pass?lw:lw+3;ctx.beginPath();
+    for(const[a,b]of BONES){const p=P(a),q=P(b);if(p.v<.35||q.v<.35)continue;ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y)}ctx.stroke()}
+  const n=P(0);if(n.v>.4){ctx.beginPath();ctx.arc(n.x,n.y,lw*2,0,Math.PI*2);ctx.fillStyle=col;ctx.fill()}
+  // 서야 할 자리 안내 틀
+  ctx.save();ctx.setLineDash([10,8]);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
+  ctx.strokeRect(W*.25,H*.08,W*.5,H*.86);ctx.restore();
+}
+function frame(now){
+  const f=fit();drawVideo(f);
+  if(running){evaluate(now);drawSkeleton(f,now);verdict()}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function verdict(){
+  const v=$('verdict'),tip=$('tip');
+  const all=[R.cam,R.person,R.full,R.light,R.fps];
+  if(all.every(x=>x===true)&&moveDone){v.textContent='✅ 준비 끝! 게임을 시작해도 돼요';v.style.color='#7dffa8';tip.hidden=true;return}
+  v.style.color='#fff';tip.hidden=false;
+  if(!R.cam){v.textContent='카메라를 켜는 중…';tip.textContent='';return}
+  if(!R.person){v.textContent='사람을 찾는 중';tip.textContent='카메라 앞 2~3m에 서 보세요. 점선 틀 안에 들어오면 좋아요';return}
+  if(R.full===false){v.textContent='온몸이 보이게 서요';tip.textContent=$('s3').textContent.includes('가까')?'한두 걸음 뒤로 물러서요':$('s3').textContent.includes('멀')?'한두 걸음 앞으로 와요':'기기를 조금 기울이거나 뒤로 물러서요';return}
+  if(R.light===false){v.textContent='밝기를 맞춰요';tip.textContent=$('s4').textContent.includes('어두')?'불을 켜거나 창 쪽을 보고 서요':'창을 등지지 말고, 커튼을 쳐 보세요';return}
+  if(R.fps===false){v.textContent='인식이 느려요';tip.textContent='다른 앱·탭을 닫고, 되도록 PC나 새 기기로 해 보세요. 느린 공(쉬움) 난이도를 고르면 괜찮아요';return}
+  if(!moveDone){v.textContent='한 손을 머리 위로 들었다 내려요';tip.textContent='뼈대가 따라 움직이면 반응 확인 끝!';return}
+}
+let camFacing=null;
+$('btnStart').addEventListener('click',async()=>{
+  S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;
+  const btn=$('btnStart'),msg=$('setupMsg');btn.disabled=true;
+  try{
+    if(!stream||camFacing!==S.cam){msg.textContent='카메라를 켜는 중…';await startCamera();camFacing=S.cam}
+    if(!pose){msg.textContent='동작 인식 준비 중… (처음엔 10초쯤 걸려요)';await initPose()}
+    detectLoop();msg.textContent='';
+    $('ovSetup').hidden=true;$('list').hidden=false;$('bottom').hidden=false;running=true;t0=performance.now();
+  }catch(e){
+    console.error(e);
+    msg.textContent=(e&&e.name==='NotAllowedError')?'카메라가 막혀 있어요. 크롬에서 주소(https://…)로 열고, 주소창 옆 자물쇠에서 카메라를 허용해 주세요. 파일로 열면 안 돼요.'
+      :(e&&e.name==='NotFoundError')?'카메라를 찾지 못했어요. 다른 앱이 카메라를 쓰고 있는지 확인해요.':(e&&e.message)||'시작하지 못했어요.';
+  }finally{btn.disabled=false}
+});
+$('btnAgain').addEventListener('click',()=>{moveDone=false;moveStart=0;fpsSamples.length=0;running=false;$('list').hidden=true;$('bottom').hidden=true;$('ovSetup').hidden=false});
+$('btnFull').addEventListener('click',()=>{try{if(document.fullscreenElement)document.exitFullscreen();else{const r=document.documentElement.requestFullscreen();if(r&&r.catch)r.catch(()=>{})}}catch(e){}});
+})();
+</script>
+</body>
+</html>

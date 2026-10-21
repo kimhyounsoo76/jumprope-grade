@@ -192,6 +192,10 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -221,7 +225,7 @@ const PE=(()=>{
     el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px">
       <span style="color:inherit;opacity:.75">참가 모둠 ${teams.length}개</span>
       ${teams.map((t,i)=>`<span style="background:rgba(255,255,255,.08);border-radius:999px;padding:4px 10px">${dot(i)}${esc(t.name)}</span>`).join('')}
-      <a href="../" style="margin-left:auto;color:inherit;font-size:14px">모둠 바꾸기 ›</a></div>`;
+      <span style="margin-left:auto;display:flex;gap:12px"><a href="../camtest/" style="color:inherit;font-size:14px">📷 카메라 점검</a><a href="../" style="color:inherit;font-size:14px">모둠 바꾸기 ›</a></span></div>`;
   }
   // 차례 순서: 1라운드 1모둠→2모둠→…, 2라운드 …
   // 게임마다 시작 모둠을 돌려서 공평하게 (지금까지 끝난 게임 수 기준)

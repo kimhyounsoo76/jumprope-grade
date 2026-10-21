@@ -39,6 +39,12 @@ section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 .team{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 8px;background:var(--bg);min-width:0}
 .team input[type=color]{width:34px;height:34px;border:0;padding:0;background:none;cursor:pointer;flex:none}
 .team input[type=text]{flex:1;min-width:0;font:inherit;font-size:17px;border:0;background:transparent;color:var(--ink);padding:6px 2px}
+.camtest{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;background:var(--paper);border:1px dashed var(--field);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.camtest .ic{width:44px;height:44px;border-radius:12px;background:var(--field);display:grid;place-items:center;font-size:22px;flex:none}
+.camtest b{font-family:var(--display);font-weight:400;font-size:19px;display:block}
+.camtest div span{font-size:13px;color:var(--muted)}
+.camtest .go{margin-left:auto;white-space:nowrap;color:var(--field);font-weight:700;font-size:14px}
+.camtest:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .games{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 @media (min-width:720px){.games{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}}
 .game{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px 12px 12px;position:relative;transition:transform .12s,border-color .12s;min-width:0}
@@ -98,6 +104,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 
   <section>
     <h2>② 게임 고르기 <small>꼬리표는 그 게임이 기르는 운동 요소예요</small></h2>
+    <a class="camtest" href="camtest/"><span class="ic">📷</span><div><b>카메라 점검</b><span>게임 전에 카메라·거리·밝기·반응을 1분 안에 확인해요</span></div><span class="go">점검하기 ›</span></a>
     <div class="games" id="games"></div>
   </section>
 
