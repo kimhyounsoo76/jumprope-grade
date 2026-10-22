@@ -473,17 +473,22 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
 /* ---------- 자세 읽기 ---------- */
 function readShooter(f){
-  if(!lm||gnow()-lmTime>600)return null;
+  if(!lm||gnow()-lmTime>900)return null;
   const P=i=>toScreen(lm[i],f);
-  const ls=P(11),rs=P(12),lw=P(15),rw=P(16),nose=P(0),lh=P(23),rh=P(24);
-  if(Math.min(ls.v,rs.v)<.4)return null;
+  const ls=P(11),rs=P(12),nose=P(0),lh=P(23),rh=P(24);
+  if(Math.min(ls.v,rs.v)<.3)return null;
   const shW=Math.max(20,dist(ls,rs)), sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2};
-  const handsOk=lw.v>.35&&rw.v>.35;
+  // 손: 손목 → 안 보이면 검지 → 그것도 없으면 팔꿈치에서 팔 길이만큼 뻗은 자리 (공을 들면 손목이 가려지는 일이 많음)
+  const hand=(wr,ix,el,sh)=>{const w=P(wr),x=P(ix),e=P(el),s2=P(sh);if(w.v>.3)return w;if(x.v>.3)return x;
+    if(e.v>.3){return{x:e.x+(e.x-s2.x)*.9,y:e.y+(e.y-s2.y)*.9,v:e.v,est:true}}return w};
+  const lw=hand(15,19,13,11),rw=hand(16,20,14,12);
+  const handsOk=lw.v>.3&&rw.v>.3;
   const mid={x:(lw.x+rw.x)/2,y:(lw.y+rw.y)/2};
-  const together=handsOk&&dist(lw,rw)<shW*1.05;
+  const together=handsOk&&dist(lw,rw)<shW*((lw.est||rw.est)?2.6:1.5); // 팔꿈치로 어림한 손은 더 너그럽게
   const faceY=nose.v>.4?nose.y:sc.y-shW*.6;
-  const holding=together&&mid.y>faceY-shW*1.0&&mid.y<sc.y+shW*.45;
-  const overhead=handsOk&&mid.y<faceY-shW*.55;
+  const topEdge=f.oy+shW*.3; // 손이 화면 위로 나가도 '머리 위'로 침
+  const overhead=handsOk&&(mid.y<faceY-shW*.3||mid.y<topEdge);
+  const holding=together&&!overhead&&mid.y<sc.y+shW*1.1;
   const hipY=(lh.v>.4&&rh.v>.4)?(lh.y+rh.y)/2:null;
   return{shW,sc,mid,handsOk,together,holding,overhead,faceY,hipY,lw,rw};
 }
@@ -493,6 +498,7 @@ const G={phase:'setup',round:1,team:0,res:PE.teams.map(()=>[]),shots:[],shotNo:0
   state:'idle',holdSince:0,hist:[],hipBase:null,hipMax:0,ball:null,hoop:null,fx:[],net:0,lastTick:0,lastLm:0,flash:0,feedback:''};
 function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
+window.__G=G;
 function coach(txt,warn){const c=$('coach');if(!txt){c.hidden=true;return}c.hidden=false;c.textContent=txt;c.classList.toggle('warn',!!warn)}
 
 function placeHoop(){
@@ -700,16 +706,16 @@ function frameGame(now){
         }
         if(G.state==='hold'){
           if(a.hipY!=null&&G.hipBase!=null)G.hipMax=Math.max(G.hipMax,(a.hipY-G.hipBase)/a.shW);
-          if(!a.together&&!a.overhead){G.state='idle';coach('공을 놓쳤어요. 다시 들어요',true)}
-          else if(a.overhead&&now-G.holdSince>250){G.state='rise';G.riseAt=now}
+          if(!a.together&&!a.overhead&&now-G.holdSince>600){G.state='idle';coach('공을 놓쳤어요. 다시 들어요',true)}
+          else if(a.overhead&&now-G.holdSince>120){G.state='rise';G.riseAt=now}
           else coach(G.hipMax>.12?'좋아요! 무릎을 펴며 위로 쭉 던져요':'무릎을 살짝 굽혔다가 펴며 던져요');
         }
         if(G.state==='rise'){
           // 팔이 다 올라갈 때까지 기다렸다가(속도가 줄거나 0.3초) 가장 빨랐던 순간의 속도로 던짐
           const sp=riseSpeed(a.shW);
           if(sp.cur<sp.peak*.45||now-G.riseAt>300){
-            if(sp.peak>1.5)shoot(now,a,sp.peak,sp.lat,G.hipMax);
-            else{G.state='idle';coach('너무 천천히 올렸어요. 더 빠르게 쭉!',true)}
+            // 느리게 올려도 던진 걸로 침(힘이 약해 짧게 떨어짐) — 경기가 멈추지 않게
+            shoot(now,a,Math.max(sp.peak,.6),sp.lat,G.hipMax);
           }
         }
       }else if(now-lastSeen>1000)coach('어깨와 팔이 화면에 보이게 서 주세요',true);
