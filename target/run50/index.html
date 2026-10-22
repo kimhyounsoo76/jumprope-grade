@@ -392,7 +392,7 @@ async function initPose(){
   if(window.__poseReady)await window.__poseReady;
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
-  pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+  pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.4,minTrackingConfidence:.3}); // 달리기는 빠른 움직임이라 추적 기준을 낮춤
   pose.onResults(r=>{lm=r.poseLandmarks||null;lmTime=gnow()});
   await pose.initialize();
 }
@@ -459,27 +459,37 @@ function toScreen(p,f){const x=S.mirror?1-p.x:p.x;return{x:f.ox+x*f.dw,y:f.oy+p.
 // 무릎(25·26)이 같은 쪽 엉덩이(23·24)에 얼마나 가까워졌는지로 무릎 들기를 판단
 const legs=[{hip:23,knee:25,ank:27,base:null,up:false,minRel:9,flash:0},{hip:24,knee:26,ank:28,base:null,up:false,minRel:9,flash:0}];
 function readBody(f){
-  if(!lm||gnow()-lmTime>600)return null;
+  if(!lm||gnow()-lmTime>900)return null;
   const P=i=>toScreen(lm[i],f);
   const ls=P(11),rs=P(12),lh=P(23),rh=P(24);
-  if(Math.min(ls.v,rs.v,lh.v,rh.v)<.4)return null;
-  const torso=Math.max(30,Math.hypot((ls.x+rs.x-lh.x-rh.x)/2,(ls.y+rs.y-lh.y-rh.y)/2));
+  if(Math.min(ls.v,rs.v)<.3)return null; // 어깨만 보여도 진행 (엉덩이 없으면 어깨 너비로 몸통 길이 추정)
+  const hipsOk=Math.min(lh.v,rh.v)>=.3;
+  const torso=Math.max(30,hipsOk?Math.hypot((ls.x+rs.x-lh.x-rh.x)/2,(ls.y+rs.y-lh.y-rh.y)/2):Math.hypot(ls.x-rs.x,ls.y-rs.y)*1.3);
   const lk=P(25),rk=P(26);
-  return{P,torso,kneesOk:lk.v>.45&&rk.v>.45};
+  return{P,torso,hipsOk,sc:{x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2},kneesOk:lk.v>.45&&rk.v>.45};
 }
 // 팔(손목 15·16, 안 보이면 팔꿈치 13·14)이 어깨(11·12) 쪽으로 올라오는 흔들기를 걸음으로 셈
 const arms=[{sh:11,el:13,wr:15,base:null,up:false,flash:0},{sh:12,el:14,wr:16,base:null,up:false,flash:0}];
-function resetLegs(){for(const g of legs){g.base=null;g.up=false;g.minRel=9;g.flash=0}for(const a of arms){a.base=null;a.up=false;a.flash=0}G.lastStepAt=0}
+function resetLegs(){bob.base=null;bob.down=false;for(const g of legs){g.base=null;g.up=false;g.minRel=9;g.flash=0}for(const a of arms){a.base=null;a.up=false;a.flash=0}G.lastStepAt=0}
 function trackArms(b,now,onStep){
   const T=LIFT[S.lift].arm;
   for(let i=0;i<2;i++){
-    const a=arms[i],sh=b.P(a.sh);let p=b.P(a.wr);if(p.v<.45)p=b.P(a.el);if(p.v<.45)continue;
+    const a=arms[i],sh=b.P(a.sh);let p=b.P(a.wr);if(p.v<.3)p=b.P(a.el);if(p.v<.3)continue;
     const rel=(p.y-sh.y)/b.torso; // 팔을 내리고 있으면 크고, 앞으로 흔들어 올리면 작아짐
     if(a.base==null)a.base=rel;
     if(rel>a.base)a.base=rel;else if(!a.up)a.base+=(rel-a.base)*.01;
     if(!a.up&&rel<a.base-T){a.up=true;a.flash=now;onStep(2+i,now)}
     else if(a.up&&rel>a.base-T*.45)a.up=false;
   }
+}
+// 어깨 들썩임: 어깨 가운데가 몸통 길이의 5% 넘게 내려갔다 올라오면 한 걸음 (팔·다리가 안 잡힐 때 보조)
+const bob={base:null,down:false,min:0};
+function trackBob(b,now,onStep){
+  const rel=b.sc.y/b.torso;
+  if(bob.base==null)bob.base=rel;
+  const T=.05;
+  if(!bob.down){bob.base+=(rel-bob.base)*.05;if(rel>bob.base+T){bob.down=true;bob.min=rel}}
+  else{bob.min=Math.max(bob.min,rel);if(rel<bob.min-T*.6){bob.down=false;bob.base=rel;onStep(4,now)}}
 }
 // 다리·팔 신호를 한 걸음으로 합치기: 같은 걸음에서 나온 신호(140ms 안)는 한 번만
 function stepSignal(src,now){
@@ -489,7 +499,7 @@ function stepSignal(src,now){
 function trackLegs(b,now,onStep){ // 새 인식 결과마다 호출
   const T=LIFT[S.lift].up;
   for(let i=0;i<2;i++){
-    const g=legs[i],hip=b.P(g.hip),k=b.P(g.knee);if(k.v<.45)continue;
+    const g=legs[i],hip=b.P(g.hip),k=b.P(g.knee);if(k.v<.3||hip.v<.3)continue;
     const rel=(k.y-hip.y)/b.torso; // 서 있으면 크고, 무릎을 들면 작아짐
     if(g.base==null)g.base=rel;
     if(rel>g.base)g.base=rel;else if(!g.up)g.base+=(rel-g.base)*.01; // 서 있는 높이를 천천히 따라감
@@ -503,6 +513,7 @@ const G={phase:'setup',round:1,team:0,res:PE.teams.map(()=>[]),d:0,dDisp:0,steps
   trace:[],ghost:null,lastLm:0,startSeq:null,falseCount:0,finishT:null};
 function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
+window.__G=G;
 function coach(txt,opt={}){const c=$('coach');if(!txt){c.hidden=true;return}c.hidden=false;c.textContent=txt;c.className=(opt.small?'small ':'')+(opt.warn?'warn':'')}
 
 function onStep(i,now){
@@ -527,7 +538,7 @@ function startSequence(){
 }
 function seqTick(now,b){
   if(G.phase==='marks'){
-    if(!b){coach('온몸이 화면에 보이게 서 주세요',{small:true,warn:true});G.stillSince=0;return}
+    if(!b){coach('어깨까지는 꼭 보이게 서 주세요',{small:true,warn:true});G.stillSince=0;return}
     if(!G.stillSince)G.stillSince=now;
     if(now-G.stillSince>400)coach('차렷');
     if(now-G.stillSince>1200){G.phase='set';G.setAt=now;G.gunAt=now+1000+Math.random()*1500;coach('준비');sfx.ready()}
@@ -627,7 +638,7 @@ function frameGame(now){
   drawVideo(f);
   if(G.phase==='ready')drawZone(f);
   const b=(G.phase!=='setup'&&G.phase!=='final')?readBody(f):null;
-  if(b&&lmTime!==G.lastLm){G.lastLm=lmTime;trackLegs(b,now,stepSignal);trackArms(b,now,stepSignal)}
+  if(b&&lmTime!==G.lastLm){G.lastLm=lmTime;trackLegs(b,now,stepSignal);trackArms(b,now,stepSignal);trackBob(b,now,stepSignal)}
   if(G.phase==='marks'||G.phase==='set')seqTick(now,b);
   if(G.phase==='run'){
     G.elapsed=(now-G.t0)/1000;
