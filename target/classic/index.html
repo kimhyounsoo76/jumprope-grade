@@ -134,10 +134,10 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <h2>⏸ 잠시 멈춤</h2>
     <p class="sub center">타이머와 경기가 멈춰 있어요</p>
     <button class="btn" id="btnResume">계속하기</button>
-    <div class="row"><button class="btn ghost" id="btnPauseSetup">설정으로</button><a class="btn ghost" href="../" style="display:flex;align-items:center;justify-content:center;text-decoration:none">첫 화면</a></div>
+    <div class="row"><button class="btn ghost" id="btnPauseSetup">설정으로</button><a class="btn ghost" href="../" id="btnPauseHome" style="display:flex;align-items:center;justify-content:center;text-decoration:none">첫 화면</a></div>
   </div>
 </div>
-<div id="recToast" hidden><span id="recMsg">녹화가 끝났어요</span><a class="btn" id="recDl" download>내려받기</a><button class="btn ghost" id="recClose" style="font-size:18px;min-height:44px;padding:8px 14px">닫기</button></div>
+<div id="recToast" hidden><span id="recMsg">녹화가 끝났어요</span><a class="btn" id="recDl" download>내려받기</a><a class="btn ghost" id="recGo" href="../" hidden style="font-size:18px;min-height:44px;padding:8px 14px;text-decoration:none;display:inline-flex;align-items:center">첫 화면으로</a><button class="btn ghost" id="recClose" style="font-size:18px;min-height:44px;padding:8px 14px">닫기</button></div>
 <div class="overlay" id="ovLeave" hidden>
   <div class="panel center" style="max-width:420px">
     <h2>경기를 그만두고 나갈까요?</h2>
@@ -195,6 +195,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <div id="turnTeam" class="big-turn c">청</div>
     <h2 id="turnScore">0점</h2>
     <div class="stat"><span>1점 과녁 <b id="turnN1">0</b></span><span>3점 과녁 <b id="turnN3">0</b></span></div>
+    <button class="btn ghost" id="btnSaveRec" hidden style="font-size:18px;min-height:46px">⏺ 지금까지 녹화 내려받기</button>
     <button class="btn" id="btnNext">다음 차례</button>
   </div>
 </div>
@@ -644,7 +645,7 @@ function countdown(){
 function endTurn(){
   G.phase='turnEnd';G.targets=[];sfx.end();
   const ri=G.round-1;G.scores[G.team][ri]=G.cur;G.stats[G.team][ri]={n1:G.n1,n3:G.n3};
-  allHidden();show('ovTurn',true);
+  allHidden();show('ovTurn',true);$('btnSaveRec').hidden=!rec;
   const tt=$('turnTeam');PE.bigTurn(tt,G.team,teamName(G.team));
   $('turnScore').textContent=`${G.cur}점`;$('turnN1').textContent=G.n1;$('turnN3').textContent=G.n3;
   const last=PE.isLast(G,S.rounds);
@@ -716,12 +717,14 @@ function resumeGame(){
 }
 function frame(raw){
   $('btnPause').hidden=!PAUSABLE.includes(G.phase)||!!G.paused;
+  if(rec&&recTrack&&recTrack.requestFrame){try{recTrack.requestFrame()}catch(e){}}
   if(G.paused){requestAnimationFrame(frame);return}
   frameGame(raw-pausedTotal);
 }
 $('btnPause').addEventListener('click',pauseGame);
 $('btnResume').addEventListener('click',resumeGame);
 $('btnPauseSetup').addEventListener('click',()=>{resumeGame();toSetup()});
+$('btnPauseHome').addEventListener('click',e=>{if(rec){e.preventDefault();show('ovPause',false);resumeGame();G.leaveAfter=true;stopRec()}});
 document.addEventListener('keydown',e=>{
   if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
   if(e.code==='KeyP'||e.code==='Escape'){if(G.paused)resumeGame();else pauseGame();e.preventDefault()}
@@ -729,38 +732,44 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')pauseGame()});
 
 /* ---------- 화면 녹화 (캔버스 + 효과음) ---------- */
-let rec=null,recChunks=[],recStart=0,recTimer=null,recUrl=null;
+let rec=null,recChunks=[],recStart=0,recTimer=null,recUrl=null,recDest=null,recTrack=null;
 function recMime(){for(const m of ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'])if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;return''}
 function startRec(){
   if(rec)return;
   if(!window.MediaRecorder||!cv.captureStream){$('recMsg').textContent='이 브라우저는 녹화를 지원하지 않아요';$('recDl').hidden=true;show('recToast',true);return}
   try{
-    const stream=cv.captureStream(30);
-    try{if(AC){const d=OUT().dest;d.stream.getAudioTracks().forEach(t=>stream.addTrack(t))}}catch(e){}
+    const stream=cv.captureStream(0);recTrack=stream.getVideoTracks()[0];
+    try{if(AC){OUT();recDest=AC.createMediaStreamDestination();outNode.connect(recDest);recDest.stream.getAudioTracks().forEach(t=>stream.addTrack(t))}}catch(e){}
     rec=new MediaRecorder(stream,{mimeType:recMime()||undefined,videoBitsPerSecond:4e6});
     recChunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data)};
-    rec.onstop=finishRec;rec.start(1000);recStart=Date.now();
+    rec.onstop=finishRec;rec.start(250);recStart=Date.now();
     $('btnRec').classList.add('on');show('recDot',true);
     recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('recTime').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},500);
   }catch(e){rec=null;$('recMsg').textContent='녹화를 시작하지 못했어요';$('recDl').hidden=true;show('recToast',true)}
 }
-function stopRec(){if(rec&&rec.state!=='inactive')rec.stop()}
+function stopRec(){if(rec&&rec.state!=='inactive'){try{rec.requestData()}catch(e){}rec.stop()}}
 function finishRec(){
-  clearInterval(recTimer);$('btnRec').classList.remove('on');show('recDot',false);
+  clearInterval(recTimer);recTrack=null;try{if(recDest){outNode.disconnect(recDest);recDest=null}}catch(e){}$('btnRec').classList.remove('on');show('recDot',false);
+  const resume=G.recResume,leave=G.leaveAfter;G.recResume=false;G.leaveAfter=false;$('recGo').hidden=!leave;
   const blob=new Blob(recChunks,{type:rec&&rec.mimeType||'video/webm'});rec=null;
-  if(!blob.size)return;
+  if(!blob.size){if(leave)location.href='../';return}
   if(recUrl)URL.revokeObjectURL(recUrl);recUrl=URL.createObjectURL(blob);
   const ext=(blob.type||'').includes('mp4')?'mp4':'webm',d=new Date(),ts=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
   const a=$('recDl');a.href=recUrl;a.hidden=false;a.download=`${document.title}_${ts}.${ext}`;
-  $('recMsg').textContent=`녹화 끝 · ${(blob.size/1048576).toFixed(1)}MB`;show('recToast',true);
+  $('recMsg').textContent=(leave?'저장한 뒤 나가세요 · ':'녹화 끝 · ')+`${(blob.size/1048576).toFixed(1)}MB`;show('recToast',true);
+  if(resume&&S.rec)setTimeout(startRec,300);
 }
 $('btnRec').addEventListener('click',()=>{if(rec)stopRec();else startRec()});
+$('btnSaveRec').addEventListener('click',()=>{if(!rec)return;G.recResume=true;stopRec();$('btnSaveRec').hidden=true});
+window.addEventListener('beforeunload',e=>{if(rec){e.preventDefault();e.returnValue=''}});
 $('recClose').addEventListener('click',()=>show('recToast',false));
 // 🏠 첫 화면으로: 경기 중이면 한 번 더 묻기
 $('btnHub').addEventListener('click',e=>{
   const busy=!['setup','ready','final','turnEnd'].includes(G.phase);
-  if(busy){e.preventDefault();$('ovLeave').hidden=false;$('btnStay').focus()}
+  if(busy){e.preventDefault();$('ovLeave').hidden=false;$('btnStay').focus();return}
+  if(rec){e.preventDefault();G.leaveAfter=true;stopRec()}
 });
+$('btnLeave').addEventListener('click',e=>{if(rec){e.preventDefault();$('ovLeave').hidden=true;if(G.paused)resumeGame();G.leaveAfter=true;stopRec()}});
 $('btnStay').addEventListener('click',()=>{$('ovLeave').hidden=true});
 $('btnGo').addEventListener('click',countdown);
 $('btnNext').addEventListener('click',next);
