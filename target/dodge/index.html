@@ -220,6 +220,10 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
    - 없으면 청·백 2모둠으로 시작
    - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
+/* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
+   - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
+   - 없으면 청·백 2모둠으로 시작
+   - 게임이 끝나면 순위를 저장해 본부 종합 점수판에 쌓음 */
 const PE=(()=>{
   const KEY='pegames.v1';
   const PALETTE=[
@@ -268,14 +272,15 @@ const PE=(()=>{
   function isLast(st,rounds){return (st.k||0)===teams.length*rounds-1}
   function nextName(st){return name((st.team+1)%teams.length)}
   /* 넘을 기록: 차례 시작 때 setTarget(값, 모둠, 글자 만들기), 매 프레임 beat(현재값) → 처음 넘는 순간 true */
-  const T={best:null,team:null,fmt:v=>v,led:false,el:null,higher:true};
-  function setTarget(best,team,fmt,higher=true){
-    T.best=best;T.team=team;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
+  const T={best:null,team:null,round:null,fmt:v=>v,led:false,el:null,higher:true};
+  const who=()=>T.round?`${name(T.team)} ${playerLabel(T.team,T.round)}`:name(T.team);
+  function setTarget(best,team,fmt,higher=true,round=null){
+    T.best=best;T.team=team;T.round=round;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
     if(!T.el){T.el=document.createElement('div');T.el.id='beat';T.el.style.cssText='position:fixed;z-index:2;left:calc(max(12px,env(safe-area-inset-left,0px)) + 52px);font-size:clamp(12px,2.4vmin,18px);padding:.25em .8em;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none';
       document.body.appendChild(T.el);setInterval(place,250)}
     place();
     T.el.hidden=false;
-    T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록 ${name(team)} ${T.fmt(best)}`;
+    T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록  ${who()} · ${T.fmt(best)}`;
     T.el.style.background='rgba(0,0,0,.55)';
   }
   function place(){const r=document.getElementById('roundTag');if(!T.el||!r)return;T.el.style.top=(r.hidden?12:r.getBoundingClientRect().bottom+6)+'px'}
@@ -285,12 +290,12 @@ const PE=(()=>{
     if(T.best==null){return false}
     const ahead=T.higher?cur>T.best:cur<T.best;
     if(ahead&&!T.led){T.led=true;T.el.textContent='1등으로 달리는 중! 🥇';T.el.style.background='rgba(232,168,0,.9)';T.el.style.color='#2a1f00';return true}
-    if(!ahead&&T.led){T.led=false;T.el.textContent=`넘을 기록 ${name(T.team)} ${T.fmt(T.best)}`;T.el.style.background='rgba(0,0,0,.55)';T.el.style.color='#fff'}
+    if(!ahead&&T.led){T.led=false;T.el.textContent=`넘을 기록  ${who()} · ${T.fmt(T.best)}`;T.el.style.background='rgba(0,0,0,.55)';T.el.style.color='#fff'}
     return false;
   }
   function hideTarget(){if(T.el)T.el.hidden=true}
   // 끝난 차례 중 가장 좋은 값 찾기: list=[[값,모둠],...]
-  function bestOf(list,higher=true){let b=null;for(const[v,i]of list){if(v==null)continue;if(b==null||(higher?v>b[0]:v<b[0]))b=[v,i]}return b}
+  function bestOf(list,higher=true){let b=null;for(const[v,i,r]of list){if(v==null)continue;if(b==null||(higher?v>b[0]:v<b[0]))b=[v,i,r]}return b}
   /* 최종 순위표
      opt.rounds, opt.cell(i,r)→표에 쓸 글자, opt.total(i)→합계 숫자, opt.fmtTotal(v),
      opt.higherBetter(기본 true), opt.tie(i)→같을 때 비교 숫자(클수록 좋음), opt.extra:[{label,cell(i)}] */
@@ -636,7 +641,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map(r=>[r?r.dodged:null,i])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 피함',true)}G.headY=null;G.floorY=null;G.lives=LIVES;G.dodged={high:0,low:0,front:0};G.hitsTaken=0;G.balls=[];G.warns=[];G.left=S.time;G.inv=0;
+  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map((r,ri)=>[r?r.dodged:null,i,ri+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 피함',true,b?b[2]:null)}G.headY=null;G.floorY=null;G.lives=LIVES;G.dodged={high:0,low:0,front:0};G.hitsTaken=0;G.balls=[];G.warns=[];G.left=S.time;G.inv=0;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);coach('');
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · ${S.time}초`;
   PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
