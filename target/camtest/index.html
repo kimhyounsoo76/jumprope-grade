@@ -72,6 +72,7 @@ select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(-
     <p class="sub">게임을 시작하기 전에 카메라가 잘 되는지 6가지를 확인해요. 기기를 세워 두고 평소 게임하듯 서 보세요.</p>
     <label class="f">카메라
       <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
+    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <button class="btn big" id="btnStart">점검 시작</button>
     <p class="msg" id="setupMsg"></p>
@@ -85,9 +86,9 @@ select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(-
 const POSE_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
 const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d'),vid=$('vid');
-const S={cam:'user',mirror:true};
-try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam)S.cam=g.cam}catch(e){}
-$('selCam').value=S.cam;
+const S={cam:'user',mirror:true,zone:.7};
+try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam)S.cam=g.cam;if(g.zone)S.zone=+g.zone}catch(e){}
+$('selCam').value=S.cam;$('selZone').value=String(S.zone);
 
 let pose=null,stream=null,lm=null,lmTime=0,detecting=false,errName='';
 async function initPose(){
@@ -95,7 +96,7 @@ async function initPose(){
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
   pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-  pose.onResults(r=>{lm=r.poseLandmarks||null;const t=performance.now();if(lmTime)fpsSamples.push(1000/(t-lmTime));if(fpsSamples.length>40)fpsSamples.shift();lmTime=t});
+  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;const t=performance.now();if(lmTime)fpsSamples.push(1000/(t-lmTime));if(fpsSamples.length>40)fpsSamples.shift();lmTime=t});
   await pose.initialize();
 }
 async function startCamera(){
@@ -121,12 +122,33 @@ async function listCameras(){
     if(cur){const id=cur.getSettings().deviceId;if(id&&!(S.cam&&S.cam.length>20)&&[...sel.options].some(o=>o.value===id)){sel.value=id}}
   }catch(e){}
 }
+let cropCv=null,cropCtx=null;
 async function detectLoop(){
   if(detecting)return;detecting=true;
   while(detecting){
-    if(vid.readyState>=2&&pose){try{await pose.send({image:vid})}catch(e){}}
+    if(vid.readyState>=2&&pose){
+      try{
+        const z=Math.min(1,Math.max(.3,+S.zone||1));
+        if(z>=1)await pose.send({image:vid});
+        else{ // 여러 명이 보여도 가운데 사람만: 가운데 구역만 잘라서 인식
+          const vw=vid.videoWidth,vh=vid.videoHeight,cw=Math.round(vw*z),cx=Math.round((vw-cw)/2);
+          if(!cropCv)cropCv=document.createElement('canvas');
+          if(cropCv.width!==cw||cropCv.height!==vh){cropCv.width=cw;cropCv.height=vh;cropCtx=cropCv.getContext('2d')}
+          cropCtx.drawImage(vid,cx,0,cw,vh,0,0,cw,vh);
+          await pose.send({image:cropCv});
+        }
+      }catch(e){}
+    }
     await new Promise(r=>requestAnimationFrame(r));
   }
+}
+function drawZone(f){ // 인식 구역 안내선
+  const z=Math.min(1,Math.max(.3,+S.zone||1));if(z>=1)return;
+  const x1=f.ox+(1-z)/2*f.dw,x2=f.ox+(1+z)/2*f.dw;
+  ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
+  ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
+  ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('이 안에 서세요 (가운데 사람만 인식)',W/2,H*.3);ctx.restore();
 }
 let W=0,H=0,DPR=1;
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
@@ -201,11 +223,11 @@ function drawSkeleton(f,now){
   const n=P(0);if(n.v>.4){ctx.beginPath();ctx.arc(n.x,n.y,lw*2,0,Math.PI*2);ctx.fillStyle=col;ctx.fill()}
   // 서야 할 자리 안내 틀
   ctx.save();ctx.setLineDash([10,8]);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
-  ctx.strokeRect(W*.25,H*.08,W*.5,H*.86);ctx.restore();
+  ctx.restore();
 }
 function frame(now){
   const f=fit();drawVideo(f);
-  if(running){evaluate(now);drawSkeleton(f,now);verdict()}
+  if(running){drawZone(f);evaluate(now);drawSkeleton(f,now);verdict()}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -215,7 +237,7 @@ function verdict(){
   if(all.every(x=>x===true)&&moveDone){v.textContent='✅ 준비 끝! 게임을 시작해도 돼요';v.style.color='#7dffa8';tip.hidden=true;return}
   v.style.color='#fff';tip.hidden=false;
   if(!R.cam){v.textContent='카메라를 켜는 중…';tip.textContent='';return}
-  if(!R.person){v.textContent='사람을 찾는 중';tip.textContent='카메라 앞 2~3m에 서 보세요. 점선 틀 안에 들어오면 좋아요';return}
+  if(!R.person){v.textContent='사람을 찾는 중';tip.textContent='카메라 앞 2~3m, 점선 사이(가운데 구역)에 서 보세요';return}
   if(R.full===false){v.textContent='온몸이 보이게 서요';tip.textContent=$('s3').textContent.includes('가까')?'한두 걸음 뒤로 물러서요':$('s3').textContent.includes('멀')?'한두 걸음 앞으로 와요':'기기를 조금 기울이거나 뒤로 물러서요';return}
   if(R.light===false){v.textContent='밝기를 맞춰요';tip.textContent=$('s4').textContent.includes('어두')?'불을 켜거나 창 쪽을 보고 서요':'창을 등지지 말고, 커튼을 쳐 보세요';return}
   if(R.fps===false){v.textContent='인식이 느려요';tip.textContent='다른 앱·탭을 닫고, 되도록 PC나 새 기기로 해 보세요. 느린 공(쉬움) 난이도를 고르면 괜찮아요';return}
@@ -241,7 +263,7 @@ function releaseAwake(){try{if(wake){wake.release();wake=null}}catch(e){}try{if(
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)keepAwake()});
 let camFacing=null;
 $('btnStart').addEventListener('click',async()=>{
-  S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.cam=S.cam;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}
+  S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.zone=+$('selZone').value;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.cam=S.cam;g.zone=S.zone;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}
   const btn=$('btnStart'),msg=$('setupMsg');btn.disabled=true;
   try{
     if(!stream||camFacing!==S.cam){msg.textContent='카메라를 켜는 중…';await startCamera();camFacing=S.cam}

@@ -88,7 +88,7 @@ input[type=text],select{width:100%;font:inherit;font-size:17px;color:var(--text)
 .btn:disabled{opacity:.5;cursor:wait}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1 1 160px}
 .msg{font-size:14px;color:var(--gold);min-height:1.2em;margin:0;line-height:1.5}
-.big-turn{font-family:var(--display);font-size:clamp(44px,12vw,96px);text-align:center;line-height:1}
+.big-turn{font-family:var(--display);font-size:clamp(34px,8vw,76px);text-align:center;line-height:1.05;text-wrap:balance}
 .big-turn.c{color:var(--chung);-webkit-text-stroke:2px #fff}.big-turn.b{color:#fff;-webkit-text-stroke:2px var(--baek-ink)}
 .center{text-align:center}
 #count{font-family:var(--display);font-size:clamp(120px,34vmin,300px);color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.5),0 0 30px rgba(0,0,0,.6);line-height:1}
@@ -151,7 +151,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
-    <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
@@ -362,14 +362,14 @@ const LEVEL={
 };
 const VREF={low:4.5,mid:5.8,high:7.5}; // 이상적인 팔 뻗는 속도(어깨너비/초)
 const SHOT_TIME=15;
-const S={shots:5,rounds:2,power:'mid',level:'normal',cam:'user',mirror:true,sound:true};
+const S={shots:5,rounds:2,power:'mid',level:'normal',cam:'user',mirror:true,sound:true,zone:.7};
 try{Object.assign(S,JSON.parse(localStorage.getItem('freeThrow.v1')||'{}'))}catch(e){}
 function loadForm(){if(S.cam&&S.cam.length>20){const sel=$('selCam');if(![...sel.options].some(o=>o.value===S.cam)){const o=document.createElement('option');o.value=S.cam;o.dataset.dev='1';o.textContent='📷 점검에서 고른 카메라';sel.appendChild(o)}}$('selShots').value=S.shots;$('selRounds').value=S.roundsSel||'auto';$('selPower').value=S.power;
-  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
+  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('selZone').value=String(S.zone||.7);$('chkSound').checked=S.sound}
 function readForm(){S.shots=+$('selShots').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
-  S.power=$('selPower').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
+  S.power=$('selPower').value;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
   try{localStorage.setItem('freeThrow.v1',JSON.stringify(S))}catch(e){}}
-try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam}catch(e){}
+try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone}catch(e){}
 loadForm();
 PE.setupInfo($('teamInfo'));
 
@@ -408,7 +408,7 @@ async function initPose(){
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
   pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-  pose.onResults(r=>{lm=r.poseLandmarks||null;lmTime=performance.now()});
+  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;lmTime=performance.now()});
   await pose.initialize();
 }
 async function startCamera(){
@@ -434,12 +434,33 @@ async function listCameras(){
     if(cur){const id=cur.getSettings().deviceId;if(id&&!(S.cam&&S.cam.length>20)&&[...sel.options].some(o=>o.value===id)){sel.value=id}}
   }catch(e){}
 }
+let cropCv=null,cropCtx=null;
 async function detectLoop(){
   if(detecting)return;detecting=true;
   while(detecting){
-    if(vid.readyState>=2&&pose){try{await pose.send({image:vid})}catch(e){}}
+    if(vid.readyState>=2&&pose){
+      try{
+        const z=Math.min(1,Math.max(.3,+S.zone||1));
+        if(z>=1)await pose.send({image:vid});
+        else{ // 여러 명이 보여도 가운데 사람만: 가운데 구역만 잘라서 인식
+          const vw=vid.videoWidth,vh=vid.videoHeight,cw=Math.round(vw*z),cx=Math.round((vw-cw)/2);
+          if(!cropCv)cropCv=document.createElement('canvas');
+          if(cropCv.width!==cw||cropCv.height!==vh){cropCv.width=cw;cropCv.height=vh;cropCtx=cropCv.getContext('2d')}
+          cropCtx.drawImage(vid,cx,0,cw,vh,0,0,cw,vh);
+          await pose.send({image:cropCv});
+        }
+      }catch(e){}
+    }
     await new Promise(r=>requestAnimationFrame(r));
   }
+}
+function drawZone(f){ // 인식 구역 안내선
+  const z=Math.min(1,Math.max(.3,+S.zone||1));if(z>=1)return;
+  const x1=f.ox+(1-z)/2*f.dw,x2=f.ox+(1+z)/2*f.dw;
+  ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
+  ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
+  ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('이 안에 서세요 (가운데 사람만 인식)',W/2,H*.3);ctx.restore();
 }
 
 /* ---------- 화면 좌표 ---------- */
@@ -658,6 +679,7 @@ let lastSeen=0;
 function frame(now){
   const f=fit();
   drawVideo(f);
+  if(G.phase==='ready')drawZone(f);
   const active=G.phase==='play'||G.phase==='ready'||G.phase==='wait';
   const a=active?readShooter(f):null;
   if(a)lastSeen=now;
