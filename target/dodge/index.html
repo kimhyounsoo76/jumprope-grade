@@ -345,9 +345,9 @@ const cv=$('cv'), ctx=cv.getContext('2d'), vid=$('vid');
 /* ---------- 설정 ---------- */
 // cross: 옆 공이 화면을 가로지르는 시간, front: 앞 공이 오는 시간, gap: 공 사이 간격(처음→끝), warn: 미리 알려 주는 시간
 const LEVEL={
-  easy:  {cross:1.9, front:1.6, gap:[2.0,1.3], warn:.9, frontP:.25},
-  normal:{cross:1.4, front:1.2, gap:[1.6,.9],  warn:.7, frontP:.35},
-  hard:  {cross:1.0, front:.9,  gap:[1.2,.6],  warn:.55,frontP:.4}
+  easy:  {cross:2.0, front:1.7, gap:[3.2,2.2], warn:1.2, frontP:.25},
+  normal:{cross:1.5, front:1.3, gap:[2.6,1.6], warn:1.0, frontP:.35},
+  hard:  {cross:1.1, front:1.0, gap:[1.8,1.0], warn:.8,  frontP:.4}
 };
 const LIVES=3;
 const S={time:45,rounds:2,level:'normal',cam:'user',mirror:true,sound:true};
@@ -493,14 +493,15 @@ function launch(now,w,b){
   sfx.throw();
 }
 function takeHit(now,bl,x,y){
-  bl.done=true;bl.hitAt=now;bl.hx=x;bl.hy=y;
+  bl.done=true;G.nextAt=Math.max(G.nextAt,now+700);bl.hitAt=now;bl.hx=x;bl.hy=y;
   if(now<G.inv)return;
   G.lives--;G.hitsTaken++;G.inv=now+900;G.flash=now;sfx.hit();
   G.fx.push({x,y:y-bl.r*1.6,vy:-.8,life:1,txt:'맞았어요!',col:'#ff6b6b',kind:'t',size:Math.max(32,Math.min(W,H)*.07)});
   if(G.lives<=0){G.phase='wait';sfx.out();coach('아웃!',true);setTimeout(()=>{if(G.phase==='wait')endTurn(true)},1500)}
 }
+function now0(){return performance.now()}
 function dodged(bl,x,y){
-  bl.done=true;G.dodged[bl.kind]++;sfx.dodge();
+  bl.done=true;G.nextAt=Math.max(G.nextAt,now0()+500);G.dodged[bl.kind]++;sfx.dodge();
   G.fx.push({x,y,vy:-1,life:1,txt:'+1',col:'#ffd23f',kind:'t',size:Math.max(26,Math.min(W,H)*.05)});
 }
 
@@ -594,7 +595,7 @@ function updateHud(){
   $('timer').textContent=Math.ceil(G.left);
   $('timer').classList.toggle('warn',G.phase==='play'&&G.left<=5);
   PE.chip($('teamChip'),G.team,`${teamName(G.team)} 피함 ${total()}`);
-  $('lives').textContent='❤️'.repeat(Math.max(0,G.lives))+'🖤'.repeat(LIVES-Math.max(0,G.lives));
+  $('lives').textContent='❤️'.repeat(Math.max(0,Math.min(LIVES,G.lives)))+'🖤'.repeat(Math.max(0,LIVES-Math.max(0,G.lives)));
   $('roundTag').textContent=`${G.round} / ${S.rounds} 라운드`;
 }
 
@@ -613,7 +614,8 @@ function frame(now){
     G.left=Math.max(0,S.time-(now-G.t0)/1000);
     const L=LEVEL[S.level],prog=1-G.left/S.time;
     if(b){
-      if(now>=G.nextAt&&G.left>1.5){schedule(now,b);G.nextAt=now+1000*(L.gap[0]+(L.gap[1]-L.gap[0])*prog)*(.85+Math.random()*.3)}
+      const busy=G.warns.length||G.balls.some(x=>!x.done);
+      if(!busy&&now>=G.nextAt&&G.left>1.5){schedule(now,b);G.nextAt=now+1000*(L.gap[0]+(L.gap[1]-L.gap[0])*prog)*(.85+Math.random()*.3)}
       coach('');
     }else if(now-lastSeen>800){coach('온몸이 화면에 보이게 서 주세요',true);G.nextAt=Math.max(G.nextAt,now+800)}
     for(const w of G.warns)if(now>=w.at){w.fired=true;launch(now,w,b)}
