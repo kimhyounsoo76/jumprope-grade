@@ -17,7 +17,9 @@ class PoseShim{
   pref(){try{return (JSON.parse(localStorage.getItem('pegames.v1')||'{}').engine)||'auto'}catch(e){return 'auto'}}
   async initialize(){
     try{
-      if(this.pref()==='legacy')throw new Error('설정에서 옛 엔진 선택');
+      // 기본은 검증된 옛 엔진(한 명·가벼움). 새 엔진은 설정에서 '여러 명 인식'을 고르거나, 두 명이 필요한 게임(피클볼)일 때만
+      const want=this.pref();
+      if(want==='legacy'||(want!=='tasks'&&!window.__needMulti))throw new Error('옛 엔진 사용');
       const mod=await import(HERE+'vision_bundle.mjs');
       const files=await mod.FilesetResolver.forVisionTasks(HERE+'wasm');
       const make=async delegate=>mod.PoseLandmarker.createFromOptions(files,{
@@ -27,7 +29,7 @@ class PoseShim{
       try{this.lm=await make('GPU')}catch(e){this.lm=await make('CPU')}
       window.__poseInfo.engine='tasks';
     }catch(e){
-      console.warn('새 인식 엔진을 쓰지 못해 옛 엔진으로 전환:',e);
+      if(!/옛 엔진 사용/.test(String(e&&e.message)))console.warn('새 인식 엔진을 쓰지 못해 옛 엔진으로 전환:',e);
       await loadScript(LEGACY+'pose.js');
       const L=window.Pose; // 이제 옛 엔진 클래스
       this.leg=new L({locateFile:f=>LEGACY+f});
