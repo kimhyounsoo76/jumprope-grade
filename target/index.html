@@ -97,7 +97,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 <div class="band"><div class="in">
   <div>
     <h1>몸으로 체육대회</h1>
-    <p>카메라가 몸 동작을 알아보는 체육 게임 9가지. 모둠을 정하고 게임을 고르면 모둠별로 차례대로 도전해요.</p>
+    <p>카메라가 몸 동작을 알아보는 체육 게임 10가지. 모둠을 정하고 게임을 고르면 모둠별로 차례대로 도전해요.</p>
   </div>
 </div><div class="lanes" id="lanes" aria-hidden="true"></div></div>
 <main>
@@ -110,7 +110,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
       </div>
       <div class="teams" id="teams"></div>
       <p class="sum" id="sum"></p>
-      <label class="check" style="margin-top:12px"><input type="checkbox" id="chkRec"><span>경기 자동 녹화 <small style="color:var(--muted)">— 9개 게임 모두, 끝나면 내려받기 버튼</small></span></label>
+      <label class="check" style="margin-top:12px"><input type="checkbox" id="chkRec"><span>경기 자동 녹화 <small style="color:var(--muted)">— 10개 게임 모두, 끝나면 내려받기 버튼</small></span></label>
       <div class="confirm" id="cntConfirm" hidden>
         <span>모둠 수를 바꾸면 지금까지의 종합 점수가 지워져요.</span>
         <button class="btn danger" id="cntYes">바꾸고 점수 지우기</button><button class="btn" id="cntNo">그대로 두기</button>
@@ -158,7 +158,8 @@ const GAMES=[ // col: 게임 고유색(게임 화면의 주색), tag: 운동 요
   {id:'run50',path:'run50/',em:'🏃',col:'#c4472e',name:'50m 달리기',desc:'제자리에서 무릎 높이 뛰기, 부정 출발 조심',tag:'제자리 달리기'},
   {id:'keeper',path:'keeper/',em:'🧤',col:'#1d6b35',name:'골키퍼',desc:'날아오는 축구공을 손·발·몸으로 막아요',tag:'막기·반응'},
   {id:'dodge',path:'dodge/',em:'🔴',col:'#e2372f',name:'피구 피하기',desc:'숙이고, 뛰고, 비켜서 공을 피해요',tag:'숙이기·점프'},
-  {id:'wall',path:'wall/',em:'🧱',col:'#d9822b',name:'벽 통과하기',desc:'다가오는 벽의 구멍 모양대로 자세 잡기',tag:'자세·균형'}
+  {id:'wall',path:'wall/',em:'🧱',col:'#d9822b',name:'벽 통과하기',desc:'다가오는 벽의 구멍 모양대로 자세 잡기',tag:'자세·균형'},
+  {id:'pickleball',path:'pickleball/',em:'🏓',col:'#1f8f7a',name:'몸 피클볼',desc:'두 명이 나란히 서서 1:1 랠리! 손으로 쳐서 네트 너머로',tag:'2인 대결·받아치기'}
 ];
 function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
