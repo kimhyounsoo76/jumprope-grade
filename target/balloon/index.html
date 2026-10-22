@@ -48,6 +48,14 @@ video{display:none}
 /* 도구 버튼 */
 #btnHub{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 10px);z-index:3;text-decoration:none}
 #ovLeave{z-index:6}
+#ovPause{z-index:6}
+#btnRec.on{background:rgba(255,59,78,.85);border-color:#ff8a94}
+#recDot{position:fixed;right:max(12px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 60px);z-index:3;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px;pointer-events:none}
+#recDot i{width:10px;height:10px;border-radius:50%;background:#ff3b4e;animation:recblink 1s infinite}
+@keyframes recblink{50%{opacity:.2}}
+@media (max-width:560px){#tools{flex-wrap:wrap;width:104px;justify-content:flex-end}#recDot{top:calc(env(safe-area-inset-top,0px) + 112px)}}
+#recToast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);z-index:7;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
+#recToast a.btn{font-size:18px;min-height:44px;padding:8px 16px;text-decoration:none;display:inline-flex;align-items:center}
 #tools{position:fixed;right:0;top:0;display:flex;gap:8px;
   padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 0}
 .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(10,16,40,.6);
@@ -121,6 +129,16 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
 <div id="roundTag" hidden></div>
 <div id="warnBody" hidden>온몸이 화면에 보이게 서 주세요</div>
 <a class="icon-btn" id="btnHub" href="../" title="대회 첫 화면" aria-label="대회 첫 화면">🏠</a>
+<div id="recDot" hidden><i></i>REC <span id="recTime">0:00</span></div>
+<div class="overlay" id="ovPause" hidden>
+  <div class="panel center" style="max-width:420px">
+    <h2>⏸ 잠시 멈춤</h2>
+    <p class="sub center">타이머와 경기가 멈춰 있어요</p>
+    <button class="btn" id="btnResume">계속하기</button>
+    <div class="row"><button class="btn ghost" id="btnPauseSetup">설정으로</button><a class="btn ghost" href="../" style="display:flex;align-items:center;justify-content:center;text-decoration:none">첫 화면</a></div>
+  </div>
+</div>
+<div id="recToast" hidden><span id="recMsg">녹화가 끝났어요</span><a class="btn" id="recDl" download>내려받기</a><button class="btn ghost" id="recClose" style="font-size:18px;min-height:44px;padding:8px 14px">닫기</button></div>
 <div class="overlay" id="ovLeave" hidden>
   <div class="panel center" style="max-width:420px">
     <h2>경기를 그만두고 나갈까요?</h2>
@@ -129,6 +147,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   </div>
 </div>
 <div id="tools">
+  <button class="icon-btn" id="btnRec" title="화면 녹화" aria-label="화면 녹화">⏺</button><button class="icon-btn" id="btnPause" title="잠시 멈춤 (P)" aria-label="잠시 멈춤" hidden>⏸</button>
   <button class="icon-btn" id="btnFull" title="전체 화면" aria-label="전체 화면">⛶</button>
   <button class="icon-btn" id="btnHome" title="설정으로" aria-label="설정으로" hidden>⚙</button>
 </div>
@@ -151,7 +170,8 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
-    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label></div></details>
+    <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
+    <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (끝나면 내려받기)</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
     <p class="note">기기를 2~3m 앞에 세워 두고, 머리부터 발까지 다 보이게 서 주세요. 처음 실행할 때 카메라 허용을 눌러 주세요.</p>
@@ -359,25 +379,26 @@ const LEVEL={
   normal:{life:2.1, max:3, gap:.4, gold:.18, bomb:.15, size:.82, reach:1.2},
   hard:  {life:1.6, max:4, gap:.3, gold:.2,  bomb:.22, size:.68, reach:1.4}
 };
-const S={time:30,rounds:3,level:'normal',cam:'user',mirror:true,sound:true,zone:.7};
+const S={time:30,rounds:3,level:'normal',cam:'user',mirror:true,sound:true,zone:.7,rec:false};
 try{Object.assign(S,JSON.parse(localStorage.getItem('balloonBattle.v2')||'{}'))}catch(e){}
 function loadForm(){if(S.cam&&S.cam.length>20){const sel=$('selCam');if(![...sel.options].some(o=>o.value===S.cam)){const o=document.createElement('option');o.value=S.cam;o.dataset.dev='1';o.textContent='📷 점검에서 고른 카메라';sel.appendChild(o)}}$('selTime').value=S.time;$('selRounds').value=S.roundsSel||'auto';
-  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('selZone').value=String(S.zone||.7);$('chkSound').checked=S.sound}
+  $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkRec').checked=!!S.rec;$('selZone').value=String(S.zone||.7);$('chkSound').checked=S.sound}
 function readForm(){S.time=+$('selTime').value;
-  S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
+  S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.rec=$('chkRec').checked;S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
   try{localStorage.setItem('balloonBattle.v2',JSON.stringify(S))}catch(e){}}
 try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone}catch(e){}
 loadForm();
 PE.setupInfo($('teamInfo'));
 
 /* ---------- 소리 ---------- */
-let AC=null;
+let AC=null,outNode=null,outDest=null;
+function OUT(){if(!outNode){outNode=AC.createGain();outNode.connect(AC.destination);try{outDest=AC.createMediaStreamDestination();outNode.connect(outDest)}catch(e){}}return{node:outNode,dest:outDest}}
 function beep(freq,dur=.12,type='square',vol=.12,slide=0){
   if(!S.sound||!AC)return;
   const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
   o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur);
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-  o.connect(g).connect(AC.destination);o.start(t);o.stop(t+dur+.02);
+  o.connect(g).connect(OUT().node);o.start(t);o.stop(t+dur+.02);
 }
 function pop(vol=.35){
   if(!S.sound||!AC)return;
@@ -385,7 +406,7 @@ function pop(vol=.35){
   for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
   const src=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
   src.buffer=buf;f.type='highpass';f.frequency.value=900;g.gain.value=vol;
-  src.connect(f).connect(g).connect(AC.destination);src.start(t);
+  src.connect(f).connect(g).connect(OUT().node);src.start(t);
 }
 const sfx={bomb:()=>{pop(.5);beep(160,.45,'sawtooth',.2,.4)},hit1:()=>pop(),hit3:()=>{pop(.4);setTimeout(()=>[1319,1760].forEach((f,i)=>setTimeout(()=>beep(f,.12,'triangle',.1),i*70)),60)},
   tick:()=>beep(660,.06,'sine',.12),go:()=>beep(1046,.35,'sawtooth',.12),end:()=>{beep(523,.2,'triangle',.18);setTimeout(()=>beep(392,.4,'triangle',.18),180)},
@@ -398,7 +419,7 @@ async function initPose(){
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
   pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;lmTime=performance.now()});
+  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;lmTime=gnow()});
   await pose.initialize();
 }
 async function startCamera(){
@@ -469,7 +490,7 @@ function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
 
 function bodyInfo(f){
-  if(!lm||performance.now()-lmTime>600)return null;
+  if(!lm||gnow()-lmTime>600)return null;
   const P=i=>toScreen(lm[i],f);
   const ls=P(11),rs=P(12),lh=P(23),rh=P(24);
   if(Math.min(ls.v,rs.v,lh.v,rh.v)<.4)return null;
@@ -524,7 +545,7 @@ function burst(t){
   if(t.gold)for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2,s=2+Math.random()*4;G.fx.push({x:t.x,y:t.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col:'#fff6c2',kind:'p',rot:0,sz:3})}
   G.fx.push({x:t.x,y:t.y,life:1,kind:'ring',r:t.r,col});
   G.fx.push({x:t.x+t.r*.8,y:t.y-t.r*.5,vy:-1.4,life:1,txt:t.pts>0?'+'+(t.pts*(G.left<=5?2:1)):'−'+(-t.pts),col:t.bomb?'#ff3b4e':t.gold?'#ffb81c':'#fff',kind:'t',size:Math.max(30,t.r*(t.bomb?1.2:.9))});
-  if(t.bomb)G.flash=performance.now();
+  if(t.bomb)G.flash=gnow();
 }
 
 /* ---------- 그리기 ---------- */
@@ -537,7 +558,7 @@ function drawVideo(f){
   ctx.restore();
 }
 function drawSkeleton(f){
-  if(!lm||performance.now()-lmTime>600)return;
+  if(!lm||gnow()-lmTime>600)return;
   const P=i=>toScreen(lm[i],f), col=PE.color(G.team), edge=PE.edge(G.team);
   const lw=Math.max(3,Math.min(W,H)*.006);
   ctx.lineCap='round';
@@ -600,7 +621,7 @@ function updateHud(){
 }
 
 let noBodySince=0;
-function frame(now){
+function frameGame(now){
   const f=fit();
   drawVideo(f);
   if(G.phase==='ready')drawZone(f);
@@ -642,13 +663,14 @@ function goReady(){
 }
 function countdown(){
   if(G.phase!=='ready')return;
+  if(S.rec&&!rec)startRec();
   G.phase='count';allHidden();show('ovCount',true);
   let n=3;$('count').textContent=n;sfx.count();
   const iv=setInterval(()=>{
     if(G.phase!=='count'){clearInterval(iv);return}
     n--;
     if(n>0){$('count').textContent=n;sfx.count()}
-    else{clearInterval(iv);show('ovCount',false);sfx.go();G.phase='play';G.t0=performance.now();G.spawnAt=G.t0+300;G.lastTick=0}
+    else{clearInterval(iv);show('ovCount',false);sfx.go();G.phase='play';G.t0=gnow();G.spawnAt=G.t0+300;G.lastTick=0}
   },1000);
 }
 function endTurn(){
@@ -666,7 +688,7 @@ function next(){
   goReady();
 }
 function final(){
-  PE.hideTarget();
+  PE.hideTarget();if(rec)stopRec();
   G.phase='final';allHidden();show('ovFinal',true);show('hud',false);show('roundTag',false);
   const tot=i=>G.scores[i].reduce((a,b)=>a+(b||0),0);
   const rank=PE.final($('tbl'),$('winner'),{rounds:S.rounds,cell:(i,r)=>G.scores[i][r]??'-',total:tot});
@@ -674,7 +696,7 @@ function final(){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function newMatch(){PE.begin(G);G.scores=PE.teams.map(()=>[]);G.stats=PE.teams.map(()=>[]);G.fx=[];goReady()}
-function toSetup(){releaseAwake();G.phase='setup';G.targets=[];allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);loadForm()}
+function toSetup(){releaseAwake();if(rec)stopRec();if(G.paused)resumeGame();G.phase='setup';G.targets=[];allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);loadForm()}
 
 let wake=null,nsVid=null;
 /* 화면 안 꺼지게: 1) Wake Lock  2) 안 되는 기기는 아주 작은 무음 영상을 반복 재생 */
@@ -711,6 +733,61 @@ $('btnStart').addEventListener('click',async()=>{
       :(e&&e.name==='NotFoundError')?'카메라를 찾지 못했어요.':(e&&e.message)||'시작하지 못했어요. 다시 눌러 주세요.';
   }finally{btn.disabled=false}
 });
+
+/* ---------- 게임 시계 (잠시 멈춤 동안 멈춤) ---------- */
+let pausedTotal=0,pauseAt=null;
+function gnow(){return performance.now()-pausedTotal}
+const PAUSABLE=['play','run','marks','set','false'];
+function pauseGame(){
+  if(G.paused||!PAUSABLE.includes(G.phase))return;
+  G.paused=true;pauseAt=performance.now();show('ovPause',true);$('btnResume').focus();
+}
+function resumeGame(){
+  if(!G.paused)return;
+  pausedTotal+=performance.now()-pauseAt;G.paused=false;show('ovPause',false);keepAwake();
+}
+function frame(raw){
+  $('btnPause').hidden=!PAUSABLE.includes(G.phase)||!!G.paused;
+  if(G.paused){requestAnimationFrame(frame);return}
+  frameGame(raw-pausedTotal);
+}
+$('btnPause').addEventListener('click',pauseGame);
+$('btnResume').addEventListener('click',resumeGame);
+$('btnPauseSetup').addEventListener('click',()=>{resumeGame();toSetup()});
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+  if(e.code==='KeyP'||e.code==='Escape'){if(G.paused)resumeGame();else pauseGame();e.preventDefault()}
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')pauseGame()});
+
+/* ---------- 화면 녹화 (캔버스 + 효과음) ---------- */
+let rec=null,recChunks=[],recStart=0,recTimer=null,recUrl=null;
+function recMime(){for(const m of ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'])if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;return''}
+function startRec(){
+  if(rec)return;
+  if(!window.MediaRecorder||!cv.captureStream){$('recMsg').textContent='이 브라우저는 녹화를 지원하지 않아요';$('recDl').hidden=true;show('recToast',true);return}
+  try{
+    const stream=cv.captureStream(30);
+    try{if(AC){const d=OUT().dest;d.stream.getAudioTracks().forEach(t=>stream.addTrack(t))}}catch(e){}
+    rec=new MediaRecorder(stream,{mimeType:recMime()||undefined,videoBitsPerSecond:4e6});
+    recChunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data)};
+    rec.onstop=finishRec;rec.start(1000);recStart=Date.now();
+    $('btnRec').classList.add('on');show('recDot',true);
+    recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('recTime').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},500);
+  }catch(e){rec=null;$('recMsg').textContent='녹화를 시작하지 못했어요';$('recDl').hidden=true;show('recToast',true)}
+}
+function stopRec(){if(rec&&rec.state!=='inactive')rec.stop()}
+function finishRec(){
+  clearInterval(recTimer);$('btnRec').classList.remove('on');show('recDot',false);
+  const blob=new Blob(recChunks,{type:rec&&rec.mimeType||'video/webm'});rec=null;
+  if(!blob.size)return;
+  if(recUrl)URL.revokeObjectURL(recUrl);recUrl=URL.createObjectURL(blob);
+  const ext=(blob.type||'').includes('mp4')?'mp4':'webm',d=new Date(),ts=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+  const a=$('recDl');a.href=recUrl;a.hidden=false;a.download=`${document.title}_${ts}.${ext}`;
+  $('recMsg').textContent=`녹화 끝 · ${(blob.size/1048576).toFixed(1)}MB`;show('recToast',true);
+}
+$('btnRec').addEventListener('click',()=>{if(rec)stopRec();else startRec()});
+$('recClose').addEventListener('click',()=>show('recToast',false));
 // 🏠 첫 화면으로: 경기 중이면 한 번 더 묻기
 $('btnHub').addEventListener('click',e=>{
   const busy=!['setup','ready','final','turnEnd'].includes(G.phase);
