@@ -10,11 +10,14 @@ window.__poseInfo={engine:'loading',people:0,picked:-1};
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.crossOrigin='anonymous';s.onload=ok;s.onerror=()=>no(new Error('load '+src));document.head.appendChild(s)})}
 
 class PoseShim{
-  constructor(opts){this.opts=opts||{};this.cb=null;this.lm=null;this.leg=null;this.lastTs=0;this.prev=null;this.sel={};this.numPoses=3}
+  constructor(opts){this.opts=opts||{};this.cb=null;this.lm=null;this.leg=null;this.lastTs=0;this.prev=null;this.sel={};this.numPoses=2;this.prevPoses=[];this.busy=false;this.cost=0}
   setOptions(o){this.sel=o||{}}
   onResults(f){this.cb=f;if(this.leg)this.leg.onResults(f)}
+  // 설정: pegames.v1.engine = 'tasks'(새, 여러 명) | 'legacy'(옛, 한 명·가벼움). 기본은 새 엔진
+  pref(){try{return (JSON.parse(localStorage.getItem('pegames.v1')||'{}').engine)||'auto'}catch(e){return 'auto'}}
   async initialize(){
     try{
+      if(this.pref()==='legacy')throw new Error('설정에서 옛 엔진 선택');
       const mod=await import(HERE+'vision_bundle.mjs');
       const files=await mod.FilesetResolver.forVisionTasks(HERE+'wasm');
       const make=async delegate=>mod.PoseLandmarker.createFromOptions(files,{
@@ -55,13 +58,32 @@ class PoseShim{
     window.__poseInfo.people=poses.length;window.__poseInfo.picked=bestIdx;
     return best;
   }
+  smooth(poses){
+    const out=poses.map(p=>{
+      const hx=(p[23].x+p[24].x)/2,hy=(p[23].y+p[24].y)/2;
+      let best=null,bd=.15;
+      for(const q of this.prevPoses){const d=Math.hypot(q.hx-hx,q.hy-hy);if(d<bd){bd=d;best=q}}
+      const lm=p.map((a,i)=>{
+        if(!best)return{x:a.x,y:a.y,z:a.z,visibility:a.visibility??1};
+        const b=best.lm[i],d=Math.hypot(a.x-b.x,a.y-b.y);
+        const k=Math.min(1,.25+d*10); // 1cm 떨림은 1/4만 반영, 10%쯤 움직이면 그대로
+        return{x:b.x+(a.x-b.x)*k,y:b.y+(a.y-b.y)*k,z:a.z,visibility:a.visibility??1};
+      });
+      return{lm,hx,hy};
+    });
+    this.prevPoses=out;
+    return out.map(o=>o.lm);
+  }
   async send({image}){
     if(this.leg)return this.leg.send({image});
     if(!this.lm||!this.cb)return;
     let ts=performance.now();if(ts<=this.lastTs)ts=this.lastTs+1;this.lastTs=ts;
-    let res;
+    // 느린 기기: 한 번 인식에 40ms 넘게 걸리면 그림이 끊기지 않게 한 프레임 걸러 인식
+    if(this.cost>40&&this.skip){this.skip=false;return}this.skip=true;
+    let res;const t0=performance.now();
     try{res=this.lm.detectForVideo(image,ts)}catch(e){return}
-    const poses=(res&&res.landmarks)||[];
+    this.cost=this.cost*.8+(performance.now()-t0)*.2;window.__poseInfo.ms=Math.round(this.cost);
+    const poses=this.smooth((res&&res.landmarks)||[]);
     const chosen=this.pick(poses);
     this.cb({poseLandmarks:chosen?chosen.map(q=>({x:q.x,y:q.y,z:q.z,visibility:q.visibility??1})):null,allPoses:poses,image});
   }

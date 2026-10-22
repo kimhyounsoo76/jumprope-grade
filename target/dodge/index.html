@@ -171,7 +171,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
-    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="f">인식 엔진<select id="selEngine"><option value="auto">새 엔진 (여러 명 인식)</option><option value="legacy">옛 엔진 (한 명 · 가벼움)</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
     <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (대회 전체에 적용)</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
@@ -361,7 +361,7 @@ function readForm(){S.time=+$('selTime').value;S.roundsSel=$('selRounds').value;
   S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.rec=$('chkRec').checked;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.rec=S.rec;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
   try{localStorage.setItem('dodge.v1',JSON.stringify(S))}catch(e){}}
 try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone;S.rec=!!g.rec}catch(e){}
-loadForm();
+loadForm();try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');$('selEngine').value=g.engine||'auto';$('selEngine').addEventListener('change',()=>{try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.engine=$('selEngine').value;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}})}catch(e){}
 PE.setupInfo($('teamInfo'));
 
 /* ---------- 소리 ---------- */
