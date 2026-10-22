@@ -520,11 +520,10 @@ function schedule(now,b){ // 다음 공 정하기: 미리 경고를 띄움
   const kind=r<L.frontP?'front':r<L.frontP+(1-L.frontP)/2?'high':'low';
   const side=Math.random()<.5?-1:1;
   let rad=ballR(b);
-  if(kind==='low')rad=Math.min(rad,b.torso*.16); // 발 높이 공은 작고 낮게(점프로 넘을 수 있게)
   let y;
   const headY=G.headY??(b.n.v>.4?b.n.y:b.sc.y-b.torso*.5), floorY=G.floorY??b.footY;
   if(kind==='high')y=headY-rad*.1;
-  else if(kind==='low')y=floorY-b.torso*.12;
+  else if(kind==='low')y=floorY-rad*.75; // 바닥을 굴러오는 공
   G.warns.push({kind,side,y,r:rad,at:now+L.warn*1000,t0:now,tx:b.sc.x,ty:(b.sc.y+b.hc.y)/2});
   sfx.warn();
 }
@@ -609,8 +608,12 @@ function updateBalls(now,f){
       const k=(now-bl.t0)/bl.dur,x=bl.x0+(bl.x1-bl.x0)*k,y=bl.y+Math.sin(k*Math.PI)*-4;
       if(!bl.done){
         drawBall(x,y,bl.r,(bl.x1>bl.x0?1:-1)*now/70);
-        if(b&&hits(b,x,y,bl.r))takeHit(now,bl,x,y);
-        else if(b&&!bl.passed&&((bl.x1>bl.x0&&x>b.sc.x+b.torso)||(bl.x1<bl.x0&&x<b.sc.x-b.torso))){bl.passed=true;dodged(bl,x,y)}
+        if(b&&bl.kind==='low'){ // 굴러오는 공: 몸 폭 안에 들어왔을 때 발이 공 꼭대기보다 높아야 피함
+          const near=Math.abs(x-b.sc.x)<b.torso*.55+bl.r;
+          if(near){const feet=[27,28].map(i=>b.P(i)).filter(q=>q.v>.35);const lowest=feet.length?Math.max(...feet.map(q=>q.y)):b.footY; // 발목 기준
+            if(lowest>y-bl.r*.6)takeHit(now,bl,x,y)}
+        }else if(b&&hits(b,x,y,bl.r))takeHit(now,bl,x,y);
+        if(!bl.done&&b&&!bl.passed&&((bl.x1>bl.x0&&x>b.sc.x+b.torso)||(bl.x1<bl.x0&&x<b.sc.x-b.torso))){bl.passed=true;dodged(bl,x,y)}
         if(k>=1&&!bl.passed&&!bl.done)bl.done=true;
       }else if(bl.hitAt){const e=(now-bl.hitAt)/600;drawBall(bl.hx-(bl.x1-bl.x0>0?1:-1)*e*60,bl.hy+e*e*120,bl.r,now/40,Math.max(0,1-e))}
       else drawBall(x,y,bl.r,(bl.x1>bl.x0?1:-1)*now/70,Math.max(0,1-Math.max(0,k-1)*3));
@@ -656,8 +659,8 @@ function frameGame(now){
   const b=(G.phase==='play'||G.phase==='ready')?readBody(f):null;
   if(b){lastSeen=now;
     const ny=b.n.v>.4?b.n.y:b.sc.y-b.torso*.5;
-    G.headY=G.headY==null||ny<G.headY?ny:G.headY+(ny-G.headY)*.01;      // 가장 높았던 머리 위치
-    G.floorY=G.floorY==null||b.footY>G.floorY?b.footY:G.floorY+(b.footY-G.floorY)*.01; // 바닥(발) 위치
+    if(G.headY==null||ny<G.headY)G.headY=ny;else if(ny-G.headY<b.torso*.2)G.headY+=(ny-G.headY)*.01; // 서 있을 때만 천천히 따라감(숙일 땐 무시)      // 가장 높았던 머리 위치
+    if(G.floorY==null||b.footY>G.floorY)G.floorY=b.footY;else if(G.floorY-b.footY<b.torso*.2)G.floorY+=(b.footY-G.floorY)*.01; // 바닥: 내려가면 바로, 점프 중엔 무시
   }
   if(G.phase==='play'){
     G.left=Math.max(0,S.time-(now-G.t0)/1000);
