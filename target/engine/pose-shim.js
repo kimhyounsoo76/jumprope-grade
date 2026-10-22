@@ -6,13 +6,19 @@
 const HERE=new URL('.',import.meta.url).href;
 const LEGACY='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
 window.__poseInfo={engine:'loading',people:0,picked:-1};
+let LegacyPose=null;
 
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.crossOrigin='anonymous';s.onload=ok;s.onerror=()=>no(new Error('load '+src));document.head.appendChild(s)})}
 
 class PoseShim{
   constructor(opts){this.opts=opts||{};this.cb=null;this.lm=null;this.leg=null;this.lastTs=0;this.prev=null;this.sel={};this.numPoses=2;this.prevPoses=[];this.busy=false;this.cost=0}
   setOptions(o){this.sel=o||{}}
-  onResults(f){this.cb=f;if(this.leg)this.leg.onResults(f)}
+  onResults(f){this.cb=f;if(this.leg)this.leg.onResults(r=>this.legacyResult(r))}
+  // 옛 엔진(한 명): 인식 구역이 전체보다 좁으면 가운데만 잘라 보내고, 좌표를 전체 화면 기준으로 되돌림
+  legacyResult(r){
+    if(this.cb){const z=this.cropZ||1;if(r.poseLandmarks&&z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}
+      window.__poseInfo.people=r.poseLandmarks?1:0;window.__poseInfo.picked=r.poseLandmarks?0:-1;this.cb(r)}
+  }
   // 설정: pegames.v1.engine = 'tasks'(새, 여러 명) | 'legacy'(옛, 한 명·가벼움). 기본은 새 엔진
   pref(){try{return (JSON.parse(localStorage.getItem('pegames.v1')||'{}').engine)||'auto'}catch(e){return 'auto'}}
   async initialize(){
@@ -30,11 +36,11 @@ class PoseShim{
       window.__poseInfo.engine='tasks';
     }catch(e){
       if(!/옛 엔진 사용/.test(String(e&&e.message)))console.warn('새 인식 엔진을 쓰지 못해 옛 엔진으로 전환:',e);
-      await loadScript(LEGACY+'pose.js');
-      const L=window.Pose; // 이제 옛 엔진 클래스
+      if(!LegacyPose){await loadScript(LEGACY+'pose.js');LegacyPose=window.Pose;window.Pose=PoseShim} // 옛 엔진 클래스는 따로 두고, 전역 Pose는 계속 어댑터
+      const L=LegacyPose;
       this.leg=new L({locateFile:f=>LEGACY+f});
       this.leg.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-      if(this.cb)this.leg.onResults(this.cb);
+      this.leg.onResults(r=>this.legacyResult(r));
       await this.leg.initialize();
       window.__poseInfo.engine='legacy';
     }
@@ -60,6 +66,18 @@ class PoseShim{
     window.__poseInfo.people=poses.length;window.__poseInfo.picked=bestIdx;
     return best;
   }
+  // 같은 사람이 두 번 잡히는 일(겹친 인식) 정리: 엉덩이·어깨 중심이 거의 같은 자세는 더 또렷한 쪽 하나만 남김
+  dedup(poses){
+    const info=poses.map(p=>({p,hx:(p[23].x+p[24].x)/2,hy:(p[23].y+p[24].y)/2,sx:(p[11].x+p[12].x)/2,sy:(p[11].y+p[12].y)/2,
+      vis:p.reduce((a,q)=>a+(q.visibility??1),0)/p.length}));
+    info.sort((a,b)=>b.vis-a.vis);
+    const keep=[];
+    for(const c of info){
+      const dup=keep.some(k=>Math.hypot(k.hx-c.hx,k.hy-c.hy)<.08&&Math.hypot(k.sx-c.sx,k.sy-c.sy)<.1);
+      if(!dup)keep.push(c);
+    }
+    return keep.map(k=>k.p);
+  }
   smooth(poses){
     const out=poses.map(p=>{
       const hx=(p[23].x+p[24].x)/2,hy=(p[23].y+p[24].y)/2;
@@ -77,7 +95,15 @@ class PoseShim{
     return out.map(o=>o.lm);
   }
   async send({image}){
-    if(this.leg)return this.leg.send({image});
+    if(this.leg){
+      const z=Math.min(1,Math.max(.3,+window.__zone||1));this.cropZ=z;
+      if(z>=1||!image.videoWidth)return this.leg.send({image});
+      const vw=image.videoWidth,vh=image.videoHeight,cw=Math.round(vw*z),cx=Math.round((vw-cw)/2);
+      if(!this.cropCv){this.cropCv=document.createElement('canvas')}
+      if(this.cropCv.width!==cw||this.cropCv.height!==vh){this.cropCv.width=cw;this.cropCv.height=vh;this.cropCtx=this.cropCv.getContext('2d')}
+      this.cropCtx.drawImage(image,cx,0,cw,vh,0,0,cw,vh);
+      return this.leg.send({image:this.cropCv});
+    }
     if(!this.lm||!this.cb)return;
     let ts=performance.now();if(ts<=this.lastTs)ts=this.lastTs+1;this.lastTs=ts;
     // 느린 기기: 한 번 인식에 40ms 넘게 걸리면 그림이 끊기지 않게 한 프레임 걸러 인식
@@ -85,7 +111,7 @@ class PoseShim{
     let res;const t0=performance.now();
     try{res=this.lm.detectForVideo(image,ts)}catch(e){return}
     this.cost=this.cost*.8+(performance.now()-t0)*.2;window.__poseInfo.ms=Math.round(this.cost);
-    const poses=this.smooth((res&&res.landmarks)||[]);
+    const poses=this.smooth(this.dedup((res&&res.landmarks)||[]));
     const chosen=this.pick(poses);
     this.cb({poseLandmarks:chosen?chosen.map(q=>({x:q.x,y:q.y,z:q.z,visibility:q.visibility??1})):null,allPoses:poses,image});
   }

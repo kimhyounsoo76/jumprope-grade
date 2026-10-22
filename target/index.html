@@ -65,7 +65,7 @@ section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 .game{border-left:4px solid var(--accent,var(--line))}
 .game .played{color:var(--field);font-weight:700}
 .tbl{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:420px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:300px}
 th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 th{font-weight:400;color:var(--muted);font-size:14px}
 td.n{text-align:left}
@@ -162,7 +162,8 @@ const GAMES=[ // col: 게임 고유색(게임 화면의 주색), tag: 운동 요
   {id:'pickleball',path:'pickleball/',em:'🏓',col:'#1f8f7a',name:'몸 피클볼',desc:'두 명이 나란히 서서 1:1 랠리! 손으로 쳐서 네트 너머로',tag:'2인 대결·받아치기'}
 ];
 function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
-function write(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
+// 저장: 카메라·인식 범위·엔진처럼 다른 화면에서 정한 값은 그대로 두고, 이 화면의 값(모둠·기록·녹화)만 덮어씀
+function write(){try{const cur=read()||{};localStorage.setItem(KEY,JSON.stringify(Object.assign(cur,{teams:D.teams,history:D.history,rec:!!D.rec})))}catch(e){}}
 let D=read();
 if(!D||!Array.isArray(D.teams)||D.teams.length<2)D={teams:PALETTE.slice(0,2).map(p=>({name:p.n,color:p.c,n:4})),history:[]};
 if(!Array.isArray(D.history))D.history=[];
@@ -215,14 +216,16 @@ function renderBoard(){
   const tot=pts.map(a=>a.reduce((x,y)=>x+y,0));
   const order=D.teams.map((_,i)=>i).sort((a,b)=>tot[b]-tot[a]);
   const best=Math.max(...tot);
-  let h='<table><tr><th>순위</th><th style="text-align:left">모둠</th>';
+  // 합계를 모둠 바로 옆에 두어 휴대폰에서 옆으로 밀지 않아도 보이게
+  let h='<table><tr><th>순위</th><th style="text-align:left">모둠</th><th>합계</th>';
   hs.forEach(x=>{const g=GAMES.find(g=>g.id===x.game);h+=`<th title="${esc(x.title)}">${g?g.em:'🎮'}</th>`});
-  h+='<th>합계</th></tr>';
+  h+='</tr>';
   let rank=0,prev=null;
   order.forEach((i,k)=>{if(tot[i]!==prev){rank=k+1;prev=tot[i]}
     h+=`<tr class="${tot[i]===best?'top':''}"><td>${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank}</td><td class="n"><span class="dot" style="background:${D.teams[i].color}"></span>${esc(D.teams[i].name)}</td>`;
+    h+=`<td class="sum">${tot[i]}</td>`;
     pts[i].forEach((p,j)=>h+=`<td>${p}<small style="color:var(--muted);display:block;font-size:11px">${hs[j].rank[i]}등</small></td>`);
-    h+=`<td class="sum">${tot[i]}</td></tr>`});
+    h+='</tr>'});
   $('board').innerHTML=h+'</table>';
 }
 $('newMatch').onclick=()=>{$('ovNew').hidden=false};

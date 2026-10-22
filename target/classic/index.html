@@ -176,7 +176,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
-    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="f">인식 엔진<select id="selEngine"><option value="auto">기본 (한 명 · 빠르고 안정)</option><option value="tasks">여러 명 인식 (구역 안 가운데 사람 따라가기)</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
+    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="f">인식 엔진 (처음 시작하기 전에 고르세요)<select id="selEngine"><option value="auto">기본 (한 명 · 빠르고 안정)</option><option value="tasks">여러 명 인식 (구역 안 가운데 사람 따라가기)</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
     <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (대회 전체에 적용)</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
@@ -286,7 +286,21 @@ const PE=(()=>{
     T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록  ${who()} · ${T.fmt(best)}`;
     T.el.style.background='rgba(0,0,0,.55)';
   }
-  function place(){const r=document.getElementById('roundTag');if(!T.el||!r)return;T.el.style.top=(r.hidden?12:r.getBoundingClientRect().bottom+6)+'px'}
+  // 넘을 기록 칩 자리: PC·태블릿은 라운드 표시 아래(왼쪽), 좁은 화면(휴대폰 세로)은 점수판 아래 가운데로 모아 겹치지 않게
+  function place(){
+    const r=document.getElementById('roundTag'),hud=document.getElementById('hud'),hb=document.querySelector('#hud .hud-box');
+    if(!T.el||!r)return;
+    // 결과·설정 같은 불투명 창이 떠 있으면 칩을 잠시 감춤 (창 위에 겹쳐 보이지 않게)
+    T.el.style.visibility=document.querySelector('.overlay:not(.clear):not([hidden])')?'hidden':'visible';
+    if(window.innerWidth<=560&&hb&&hud&&!hud.hidden){
+      const hr=hb.getBoundingClientRect();
+      Object.assign(r.style,{left:'50%',right:'auto',transform:'translateX(-50%)',padding:'0',top:(hr.bottom+4)+'px',textAlign:'center',fontSize:'12px',lineHeight:'1.3'});
+      Object.assign(T.el.style,{left:'50%',transform:'translateX(-50%)',top:((r.hidden?hr.bottom+4:r.getBoundingClientRect().bottom+4))+'px',maxWidth:'calc(100vw - 24px)',overflow:'hidden',textOverflow:'ellipsis'});
+    }else{
+      if(r.style.left)r.style.cssText='';
+      Object.assign(T.el.style,{left:'calc(max(12px,env(safe-area-inset-left,0px)) + 52px)',transform:'',top:(r.hidden?12:r.getBoundingClientRect().bottom+6)+'px'});
+    }
+  }
   function beat(cur){
     place();
     if(!T.el||T.el.hidden)return false;
@@ -441,7 +455,7 @@ function drawZone(f){ // 인식 구역 안내선
   ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
   ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
   ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.fillText('이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)',W/2,H*.3);ctx.restore();
+  ctx.fillText((window.__poseInfo&&window.__poseInfo.engine==='tasks')?'이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)':'이 안에 서세요 (바깥은 인식하지 않아요)',W/2,H*.3);ctx.restore();
 }
 
 /* ---------- 화면 좌표 ---------- */
@@ -459,13 +473,15 @@ function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
 
 function bodyInfo(f){
-  if(!lm||gnow()-lmTime>600)return null;
+  if(!lm||gnow()-lmTime>800)return null;
   const P=i=>toScreen(lm[i],f);
   const ls=P(11),rs=P(12),lh=P(23),rh=P(24);
-  if(Math.min(ls.v,rs.v,lh.v,rh.v)<.4)return null;
-  const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2},hc={x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2};
-  const torso=Math.hypot(sc.x-hc.x,sc.y-hc.y);
-  return{sc,hc,torso,P};
+  if(Math.min(ls.v,rs.v)<.3)return null; // 어깨만 보여도 진행
+  const sc={x:(ls.x+rs.x)/2,y:(ls.y+rs.y)/2},shW=Math.max(20,Math.hypot(ls.x-rs.x,ls.y-rs.y));
+  const hipsOk=Math.min(lh.v,rh.v)>=.3; // 엉덩이가 안 보이면 어깨 너비로 자리를 어림
+  const hc=hipsOk?{x:(lh.x+rh.x)/2,y:(lh.y+rh.y)/2}:{x:sc.x,y:sc.y+shW*1.35};
+  const torso=Math.max(30,hipsOk?Math.hypot(sc.x-hc.x,sc.y-hc.y):shW*1.35);
+  return{sc,hc,torso,P,hipsOk};
 }
 function targetRadius(torso,gold){
   const base=Math.max(Math.min(W,H)*.045,Math.min(Math.min(W,H)*.1,torso*.3))*LEVEL[S.level].size;
@@ -522,7 +538,7 @@ function drawVideo(f){
   ctx.restore();
 }
 function drawSkeleton(f){
-  if(!lm||gnow()-lmTime>600)return;
+  if(!lm||gnow()-lmTime>800)return;
   const P=i=>toScreen(lm[i],f), col=PE.color(G.team), edge=PE.edge(G.team);
   const lw=Math.max(3,Math.min(W,H)*.006);
   ctx.lineCap='round';

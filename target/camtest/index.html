@@ -72,7 +72,7 @@ select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(-
     <p class="sub">게임을 시작하기 전에 카메라가 잘 되는지 6가지를 확인해요. 기기를 세워 두고 평소 게임하듯 서 보세요.</p>
     <label class="f">카메라
       <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
-    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="f">인식 엔진<select id="selEngine"><option value="auto">기본 (한 명 · 빠르고 안정)</option><option value="tasks">여러 명 인식 (구역 안 가운데 사람 따라가기)</option></select></label>
+    <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="f">인식 엔진 (처음 시작하기 전에 고르세요)<select id="selEngine"><option value="auto">기본 (한 명 · 빠르고 안정)</option><option value="tasks">여러 명 인식 (구역 안 가운데 사람 따라가기)</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <button class="btn big" id="btnStart">점검 시작</button>
     <p class="msg" id="setupMsg"></p>
@@ -150,7 +150,7 @@ function drawZone(f){ // 인식 구역 안내선
   ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
   ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
   ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.fillText('이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)',W/2,H*.3);ctx.restore();
+  ctx.fillText((window.__poseInfo&&window.__poseInfo.engine==='tasks')?'이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)':'이 안에 서세요 (바깥은 인식하지 않아요)',W/2,H*.3);ctx.restore();
 }
 let W=0,H=0,DPR=1;
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
@@ -173,7 +173,7 @@ function setChk(n,state,small){const el=$('c'+n);el.className='chk'+(state===tru
 function evaluate(now){
   const f=fit();
   // 1 카메라
-  R.cam=vid.readyState>=2&&!!stream;setChk(1,R.cam,R.cam?`${vid.videoWidth}×${vid.videoHeight}`+((window.__poseInfo||{}).engine==='legacy'?' · 옛 엔진(1명)':''):'');
+  R.cam=vid.readyState>=2&&!!stream;setChk(1,R.cam,R.cam?`${vid.videoWidth}×${vid.videoHeight}`+(((window.__poseInfo||{}).engine==='legacy')?' · 기본 엔진(1명)':((window.__poseInfo||{}).engine==='tasks')?` · 여러 명 엔진 (한 번 ${(window.__poseInfo||{}).ms||'?'}ms)`:''):'');
   // 2 사람
   const fresh=lm&&now-lmTime<700;
   const P=i=>toScreen(lm[i],f);
