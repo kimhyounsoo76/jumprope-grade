@@ -37,6 +37,8 @@ section h2 small{font-family:var(--body);font-size:14px;color:var(--muted)}
 .step output{min-width:84px;text-align:center;font-family:var(--display);font-size:32px;font-variant-numeric:tabular-nums}
 .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .sum{font-size:13px;color:var(--muted);margin:10px 0 0;line-height:1.6}
+.check{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--field)}
 .team{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 8px;background:var(--bg);min-width:0}
 .team input[type=color]{width:34px;height:34px;border:0;padding:0;background:none;cursor:pointer;flex:none}
 .team input[type=text]{flex:1;min-width:0;font:inherit;font-size:17px;border:0;background:transparent;color:var(--ink);padding:6px 2px}
@@ -100,6 +102,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
       </div>
       <div class="teams" id="teams"></div>
       <p class="sum" id="sum"></p>
+      <label class="check" style="margin-top:12px"><input type="checkbox" id="chkRec"><span>경기 자동 녹화 <small style="color:var(--muted)">— 9개 게임 모두, 끝나면 내려받기 버튼</small></span></label>
       <div class="confirm" id="cntConfirm" hidden>
         <span>모둠 수를 바꾸면 지금까지의 종합 점수가 지워져요.</span>
         <button class="btn danger" id="cntYes">바꾸고 점수 지우기</button><button class="btn" id="cntNo">그대로 두기</button>
@@ -207,7 +210,8 @@ function renderBoard(){
 $('reset').onclick=()=>{$('resetConfirm').hidden=false};
 $('resetNo').onclick=()=>{$('resetConfirm').hidden=true};
 $('resetYes').onclick=()=>{D.history=[];write();$('resetConfirm').hidden=true;renderBoard();renderGames()};
-window.addEventListener('pageshow',()=>{const d=read();if(d&&Array.isArray(d.history)){D.history=d.history;renderBoard();renderGames()}});
+window.addEventListener('pageshow',()=>{const d=read();if(d&&Array.isArray(d.history)){D.history=d.history;D.rec=!!d.rec;$('chkRec').checked=D.rec;renderBoard();renderGames()}});
+$('chkRec').checked=!!D.rec;$('chkRec').addEventListener('change',e=>{D.rec=e.target.checked;write()});
 write();renderTeams();renderGames();renderBoard();
 })();
 </script>

@@ -165,7 +165,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="f">인식 범위<select id="selZone"><option value="1">화면 전체</option><option value="0.7">가운데 70%</option><option value="0.5">가운데 50%</option></select></label><label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label>
-    <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (끝나면 내려받기)</label></div></details>
+    <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (대회 전체에 적용)</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
     <p class="note">기기를 가로로 3m쯤 앞에 세우고 머리부터 발까지 다 보이게 서 주세요. 옆으로 비킬 자리도 필요해요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>
@@ -380,9 +380,9 @@ try{Object.assign(S,JSON.parse(localStorage.getItem('dodge.v1')||'{}'))}catch(e)
 function loadForm(){if(S.cam&&S.cam.length>20){const sel=$('selCam');if(![...sel.options].some(o=>o.value===S.cam)){const o=document.createElement('option');o.value=S.cam;o.dataset.dev='1';o.textContent='📷 점검에서 고른 카메라';sel.appendChild(o)}}$('selTime').value=S.time;$('selRounds').value=S.roundsSel||'auto';
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkRec').checked=!!S.rec;$('selZone').value=String(S.zone||.7);$('chkSound').checked=S.sound}
 function readForm(){S.time=+$('selTime').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
-  S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.rec=$('chkRec').checked;S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
+  S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.rec=$('chkRec').checked;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.rec=S.rec;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
   try{localStorage.setItem('dodge.v1',JSON.stringify(S))}catch(e){}}
-try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone}catch(e){}
+try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone;S.rec=!!g.rec}catch(e){}
 loadForm();
 PE.setupInfo($('teamInfo'));
 
