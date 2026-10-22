@@ -222,7 +222,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script type="module" src="../engine/pose-shim.js"></script>
 <script>
 /* ===== 체육대회 공통 모둠 도구 (모든 게임에 똑같이 들어감) =====
    - 대회 본부(../)에서 정한 모둠 목록을 localStorage 'pegames.v1'에서 읽음
@@ -436,10 +436,11 @@ const sfx={
 let pose=null, stream=null, lm=null, lmTime=0, detecting=false;
 async function initPose(){
   if(pose)return;
+  if(window.__poseReady)await window.__poseReady;
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
   pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;lmTime=gnow()});
+  pose.onResults(r=>{lm=r.poseLandmarks||null;lmTime=gnow()});
   await pose.initialize();
 }
 async function startCamera(){
@@ -471,7 +472,7 @@ async function detectLoop(){
   while(detecting){
     if(vid.readyState>=2&&pose){
       try{
-        const z=Math.min(1,Math.max(.3,+S.zone||1));
+        window.__zone=Math.min(1,Math.max(.3,+S.zone||1));const z=1; // 전체 화면을 넘기고, 구역 안 가운데 사람을 엔진이 고름
         if(z>=1)await pose.send({image:vid});
         else{ // 여러 명이 보여도 가운데 사람만: 가운데 구역만 잘라서 인식
           const vw=vid.videoWidth,vh=vid.videoHeight,cw=Math.round(vw*z),cx=Math.round((vw-cw)/2);
@@ -491,7 +492,7 @@ function drawZone(f){ // 인식 구역 안내선
   ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
   ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
   ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.fillText('이 안에 서세요 (가운데 사람만 인식)',W/2,H*.3);ctx.restore();
+  ctx.fillText('이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)',W/2,H*.3);ctx.restore();
 }
 
 /* ---------- 화면 좌표 ---------- */

@@ -80,7 +80,7 @@ select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(-
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script type="module" src="../engine/pose-shim.js"></script>
 <script>
 (()=>{
 const POSE_BASE='https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/';
@@ -93,10 +93,11 @@ $('selCam').value=S.cam;$('selZone').value=String(S.zone);
 let pose=null,stream=null,lm=null,lmTime=0,detecting=false,errName='';
 async function initPose(){
   if(pose)return;
+  if(window.__poseReady)await window.__poseReady;
   if(typeof Pose==='undefined')throw new Error('동작 인식 프로그램을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
   pose=new Pose({locateFile:f=>POSE_BASE+f});
   pose.setOptions({modelComplexity:0,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-  pose.onResults(r=>{if(r.poseLandmarks){const z=Math.min(1,Math.max(.3,+S.zone||1));if(z<1){const x0=(1-z)/2;for(const q of r.poseLandmarks)q.x=x0+q.x*z}}lm=r.poseLandmarks||null;const t=performance.now();if(lmTime)fpsSamples.push(1000/(t-lmTime));if(fpsSamples.length>40)fpsSamples.shift();lmTime=t});
+  pose.onResults(r=>{lm=r.poseLandmarks||null;const t=performance.now();if(lmTime)fpsSamples.push(1000/(t-lmTime));if(fpsSamples.length>40)fpsSamples.shift();lmTime=t});
   await pose.initialize();
 }
 async function startCamera(){
@@ -128,7 +129,7 @@ async function detectLoop(){
   while(detecting){
     if(vid.readyState>=2&&pose){
       try{
-        const z=Math.min(1,Math.max(.3,+S.zone||1));
+        window.__zone=Math.min(1,Math.max(.3,+S.zone||1));const z=1; // 전체 화면을 넘기고, 구역 안 가운데 사람을 엔진이 고름
         if(z>=1)await pose.send({image:vid});
         else{ // 여러 명이 보여도 가운데 사람만: 가운데 구역만 잘라서 인식
           const vw=vid.videoWidth,vh=vid.videoHeight,cw=Math.round(vw*z),cx=Math.round((vw-cw)/2);
@@ -148,7 +149,7 @@ function drawZone(f){ // 인식 구역 안내선
   ctx.save();ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,x1,H);ctx.fillRect(x2,0,W-x2,H);
   ctx.setLineDash([12,10]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,0);ctx.lineTo(x1,H);ctx.moveTo(x2,0);ctx.lineTo(x2,H);ctx.stroke();
   ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.03))}px 'Gowun Dodum',sans-serif`;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.fillText('이 안에 서세요 (가운데 사람만 인식)',W/2,H*.3);ctx.restore();
+  ctx.fillText('이 안에 서세요 (여러 명이 보여도 이 안의 가운데 사람을 따라가요)',W/2,H*.3);ctx.restore();
 }
 let W=0,H=0,DPR=1;
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
@@ -171,11 +172,11 @@ function setChk(n,state,small){const el=$('c'+n);el.className='chk'+(state===tru
 function evaluate(now){
   const f=fit();
   // 1 카메라
-  R.cam=vid.readyState>=2&&!!stream;setChk(1,R.cam,R.cam?`${vid.videoWidth}×${vid.videoHeight}`:'');
+  R.cam=vid.readyState>=2&&!!stream;setChk(1,R.cam,R.cam?`${vid.videoWidth}×${vid.videoHeight}`+((window.__poseInfo||{}).engine==='legacy'?' · 옛 엔진(1명)':''):'');
   // 2 사람
   const fresh=lm&&now-lmTime<700;
   const P=i=>toScreen(lm[i],f);
-  R.person=!!fresh&&lm[11].visibility>.5&&lm[12].visibility>.5;setChk(2,fresh?R.person:null,fresh?(R.person?'어깨 보임':'어깨 안 보임'):'');
+  R.person=!!fresh&&lm[11].visibility>.5&&lm[12].visibility>.5;const pi=window.__poseInfo||{};setChk(2,fresh?R.person:null,fresh?(R.person?('어깨 보임'+(pi.people>1?` · ${pi.people}명 중 가운데`:'')):'어깨 안 보임'):(pi.people>0?`${pi.people}명 보임 (구역 밖)`:''));
   // 3 온몸: 코·양 발목이 보이고 화면 안에 있어야
   if(R.person){
     const n=P(0),la=P(27),ra=P(28);
