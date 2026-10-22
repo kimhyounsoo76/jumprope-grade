@@ -76,6 +76,14 @@ td.sum{font-family:var(--display);font-size:22px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .btn{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer;min-height:44px}
 .btn.danger{color:var(--red);border-color:var(--red)}
+.btn.newmatch{font-family:var(--body);font-size:15px;background:var(--field);color:#fff;border-color:var(--field);font-weight:700}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px;z-index:9}
+.ov .box{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:22px;max-width:460px;width:100%;display:flex;flex-direction:column;gap:12px}
+.ov h3{font-family:var(--display);font-weight:400;font-size:26px;margin:0}
+.ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.ov .opt{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer;font:inherit;color:var(--ink)}
+.ov .opt b{font-size:16px}.ov .opt span{font-size:13px;color:var(--muted)}
+.ov .opt:hover{border-color:var(--field)}
 .linkish{background:none;border:0;color:var(--muted);text-decoration:underline;padding:6px 0;font:inherit;font-size:14px;cursor:pointer;min-height:0}
 .btn:focus-visible,.step button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
@@ -94,7 +102,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
 </div><div class="lanes" id="lanes" aria-hidden="true"></div></div>
 <main>
   <section>
-    <h2>① 참가 모둠 <small>이름·색·인원수를 눌러 바꿀 수 있어요</small></h2>
+    <h2>① 참가 모둠 <small>이름·색·인원수를 눌러 바꿀 수 있어요</small><button class="btn newmatch" id="newMatch" style="margin-left:auto">🔄 새 대회 시작</button></h2>
     <div class="card">
       <div class="count">
         <span>모둠 수</span>
@@ -121,12 +129,21 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding-bottom:28px}
     <p class="rule" id="rule"></p>
     <div class="card tbl" id="board"></div>
     <div class="row">
-      <button class="linkish" id="reset">점수판 지우기</button>
+      <button class="linkish" id="reset">점수판만 지우기</button>
       <span class="confirm" id="resetConfirm" hidden><span>정말 지울까요?</span><button class="btn danger" id="resetYes">지우기</button><button class="btn" id="resetNo">취소</button></span>
     </div>
     <p class="note">기록은 이 기기의 브라우저에만 저장돼요. 카메라 영상은 저장하거나 밖으로 보내지 않아요.</p>
   </section>
 </main>
+<div class="ov" id="ovNew" hidden>
+  <div class="box">
+    <h3>🔄 새 대회 시작</h3>
+    <p>지금까지의 종합 점수판을 지우고 처음부터 시작해요. 카메라·인식 범위·녹화 설정은 그대로예요.</p>
+    <button class="opt" id="newKeep"><b>모둠은 그대로, 점수만 지우기</b><span>같은 반이 한 번 더 할 때</span></button>
+    <button class="opt" id="newFresh"><b>다른 학급으로 시작 (모둠도 새로)</b><span>모둠 이름·인원이 기본값(청·백 4명)으로 돌아가요</span></button>
+    <button class="btn" id="newCancel">취소</button>
+  </div>
+</div>
 <footer>만든이 kingkongssam</footer>
 <script>
 (()=>{
@@ -207,6 +224,17 @@ function renderBoard(){
     h+=`<td class="sum">${tot[i]}</td></tr>`});
   $('board').innerHTML=h+'</table>';
 }
+$('newMatch').onclick=()=>{$('ovNew').hidden=false};
+$('newCancel').onclick=()=>{$('ovNew').hidden=true};
+function startNew(fresh){
+  D.history=[];
+  if(fresh){D.teams=PALETTE.slice(0,2).map(p=>({name:p.n,color:p.c,n:4}))}
+  write();$('ovNew').hidden=true;renderTeams();renderGames();renderBoard();
+  window.scrollTo({top:0,behavior:'smooth'});
+  const h=$('newMatch');h.textContent='✅ 새 대회 준비 끝';setTimeout(()=>h.textContent='🔄 새 대회 시작',2000);
+}
+$('newKeep').onclick=()=>startNew(false);
+$('newFresh').onclick=()=>startNew(true);
 $('reset').onclick=()=>{$('resetConfirm').hidden=false};
 $('resetNo').onclick=()=>{$('resetConfirm').hidden=true};
 $('resetYes').onclick=()=>{D.history=[];write();$('resetConfirm').hidden=true;renderBoard();renderGames()};
