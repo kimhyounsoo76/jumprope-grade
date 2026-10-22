@@ -173,6 +173,8 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
         <select id="selRounds"><option value="auto">모둠 인원수만큼</option><option value="1">1라운드</option><option value="2" >2라운드</option><option value="3">3라운드</option></select></label>
       <label class="f">난이도
         <select id="selLevel"><option value="easy">쉬움 (넓은 구멍, 느린 벽)</option><option value="normal" selected>보통</option><option value="hard">어려움 (좁은 구멍, 빠른 벽)</option></select></label>
+      <label class="f">진행 방식
+        <select id="selMode"><option value="competition" selected>대회 (종합 점수판에 올려요)</option><option value="practice">연습 (점수판에 안 올라가요)</option></select></label>
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
         <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
@@ -274,13 +276,24 @@ const PE=(()=>{
   function isLast(st,rounds){return (st.k||0)===teams.length*rounds-1}
   function nextName(st){return name((st.team+1)%teams.length)}
   /* 넘을 기록: 차례 시작 때 setTarget(값, 모둠, 글자 만들기), 매 프레임 beat(현재값) → 처음 넘는 순간 true */
-  const T={best:null,team:null,round:null,fmt:v=>v,led:false,el:null,higher:true};
+  const T={best:null,team:null,round:null,fmt:v=>v,led:false,el:null,higher:true,loop:false};
+  function ensureLoop(){if(!T.loop){T.loop=true;setInterval(place,250)}}
+  /* 연습 모드: 결과를 보여 주되 종합 점수판에는 올리지 않음. 페이지를 열 때마다 '대회'로 시작(저장 안 함) */
+  const PR={on:false,el:null};
+  function setPractice(on){
+    PR.on=!!on;
+    if(!PR.el){PR.el=document.createElement('div');PR.el.id='practiceTag';PR.el.textContent='🧪 연습 중 · 점수판에 안 올라가요';
+      PR.el.style.cssText='position:fixed;z-index:2;left:calc(max(12px,env(safe-area-inset-left,0px)) + 52px);font-size:clamp(12px,2.4vmin,18px);padding:.25em .8em;border-radius:999px;background:rgba(139,92,246,.9);color:#fff;border:1px solid rgba(255,255,255,.4);white-space:nowrap;pointer-events:none';
+      PR.el.hidden=true;document.body.appendChild(PR.el)}
+    ensureLoop();place();
+  }
+  const isPractice=()=>PR.on;
   const who=()=>T.round?`${name(T.team)} ${playerLabel(T.team,T.round)}`:name(T.team);
   function setTarget(best,team,fmt,higher=true,round=null){
     T.best=best;T.team=team;T.round=round;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
     if(!T.el){T.el=document.createElement('div');T.el.id='beat';T.el.style.cssText='position:fixed;z-index:2;left:calc(max(12px,env(safe-area-inset-left,0px)) + 52px);font-size:clamp(12px,2.4vmin,18px);padding:.25em .8em;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none';
-      document.body.appendChild(T.el);setInterval(place,250)}
-    place();
+      document.body.appendChild(T.el)}
+    ensureLoop();place();
     T.el.hidden=false;
     T.el.textContent=best==null?'첫 주자 · 기록을 세워요':`넘을 기록  ${who()} · ${T.fmt(best)}`;
     T.el.style.background='rgba(0,0,0,.55)';
@@ -288,17 +301,22 @@ const PE=(()=>{
   // 넘을 기록 칩 자리: PC·태블릿은 라운드 표시 아래(왼쪽), 좁은 화면(휴대폰 세로)은 점수판 아래 가운데로 모아 겹치지 않게
   function place(){
     const r=document.getElementById('roundTag'),hud=document.getElementById('hud'),hb=document.querySelector('#hud .hud-box');
-    if(!T.el||!r)return;
+    if(!r)return;
     // 결과·설정 같은 불투명 창이 떠 있으면 칩을 잠시 감춤 (창 위에 겹쳐 보이지 않게)
-    T.el.style.visibility=document.querySelector('.overlay:not(.clear):not([hidden])')?'hidden':'visible';
-    if(window.innerWidth<=560&&hb&&hud&&!hud.hidden){
-      const hr=hb.getBoundingClientRect();
-      Object.assign(r.style,{left:'50%',right:'auto',transform:'translateX(-50%)',padding:'0',top:(hr.bottom+4)+'px',textAlign:'center',fontSize:'12px',lineHeight:'1.3'});
-      Object.assign(T.el.style,{left:'50%',transform:'translateX(-50%)',top:((r.hidden?hr.bottom+4:r.getBoundingClientRect().bottom+4))+'px',maxWidth:'calc(100vw - 24px)',overflow:'hidden',textOverflow:'ellipsis'});
-    }else{
-      if(r.style.left)r.style.cssText='';
-      Object.assign(T.el.style,{left:'calc(max(12px,env(safe-area-inset-left,0px)) + 52px)',transform:'',top:(r.hidden?12:r.getBoundingClientRect().bottom+6)+'px'});
-    }
+    const covered=!!document.querySelector('.overlay:not(.clear):not([hidden])');
+    const narrow=window.innerWidth<=560&&hb&&hud&&!hud.hidden;
+    const hr=narrow?hb.getBoundingClientRect():null;
+    if(narrow)Object.assign(r.style,{left:'50%',right:'auto',transform:'translateX(-50%)',padding:'0',top:(hr.bottom+4)+'px',textAlign:'center',fontSize:'12px',lineHeight:'1.3'});
+    else if(r.style.left)r.style.cssText='';
+    let bottom=narrow?(r.hidden?hr.bottom:r.getBoundingClientRect().bottom):(r.hidden?6:r.getBoundingClientRect().bottom);
+    const put=(el)=>{ // 왼쪽 세로로 쌓기(PC) / 가운데 세로로 쌓기(휴대폰)
+      el.style.visibility=covered?'hidden':'visible';
+      if(narrow)Object.assign(el.style,{left:'50%',transform:'translateX(-50%)',top:(bottom+4)+'px',maxWidth:'calc(100vw - 24px)',overflow:'hidden',textOverflow:'ellipsis'});
+      else Object.assign(el.style,{left:'calc(max(12px,env(safe-area-inset-left,0px)) + 52px)',transform:'',top:(bottom+6)+'px'});
+      bottom=el.getBoundingClientRect().bottom;
+    };
+    if(T.el&&!T.el.hidden)put(T.el);
+    if(PR.el){PR.el.hidden=!(PR.on&&hud&&!hud.hidden);if(!PR.el.hidden)put(PR.el)}
   }
   function beat(cur){
     place();
@@ -340,12 +358,20 @@ const PE=(()=>{
     return rank;
   }
   // 본부 종합 점수판에 기록 (1등 = 모둠 수만큼 점수, 꼴찌 = 1점)
+  function saveNote(txt,warn){
+    const panel=document.querySelector('#ovFinal .panel');if(!panel)return;
+    let n=document.getElementById('saveNote');
+    if(!n){n=document.createElement('p');n.id='saveNote';n.className='note center';const row=panel.querySelector('.row');panel.insertBefore(n,row||null)}
+    n.textContent=txt;n.style.color=warn?'#ffd23f':'';
+  }
   function save(gameId,title,rank){
+    if(PR.on){saveNote('🧪 연습 결과예요 · 종합 점수판에는 올라가지 않았어요',true);return}
     const d=read()||{teams,history:[]};
     if(!Array.isArray(d.history))d.history=[];
     d.teams=d.teams&&d.teams.length===teams.length?d.teams:teams;
     d.history.push({game:gameId,title,at:Date.now(),rank:rank.slice(),n:teams.length});
     write(d);
+    saveNote('종합 점수판에 올렸어요 · 1등 '+teams.length+'점');
   }
   // 최종 화면 버튼 줄에 '대회 점수판' 버튼 추가
   function hubButton(rowEl){
@@ -354,7 +380,7 @@ const PE=(()=>{
     a.style.textAlign='center';a.style.textDecoration='none';a.style.display='flex';a.style.alignItems='center';a.style.justifyContent='center';
     rowEl.insertBefore(a,rowEl.firstChild);
   }
-  return{teams,count:()=>teams.length,members,maxMembers,playerLabel,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light};
+  return{teams,count:()=>teams.length,members,maxMembers,playerLabel,start,begin,setTarget,beat,hideTarget,bestOf,name,color,ink,edge,body,chip,bigTurn,btn,setupInfo,nextTurn,isLast,nextName,final,save,hubButton,esc,dot,light,setPractice,isPractice};
 })();
 </script>
 <script>
@@ -390,7 +416,7 @@ const S={walls:6,rounds:2,level:'normal',cam:'user',mirror:true,sound:true,zone:
 try{Object.assign(S,JSON.parse(localStorage.getItem('wall.v1')||'{}'))}catch(e){}
 function loadForm(){if(S.cam&&S.cam.length>20){const sel=$('selCam');if(![...sel.options].some(o=>o.value===S.cam)){const o=document.createElement('option');o.value=S.cam;o.dataset.dev='1';o.textContent='📷 점검에서 고른 카메라';sel.appendChild(o)}}$('selWalls').value=S.walls;$('selRounds').value=S.roundsSel||'auto';
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkRec').checked=!!S.rec;$('selZone').value=String(S.zone||.7);$('chkSound').checked=S.sound}
-function readForm(){S.walls=+$('selWalls').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
+function readForm(){PE.setPractice($('selMode').value==='practice');S.walls=+$('selWalls').value;S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;
   S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.rec=$('chkRec').checked;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.rec=S.rec;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}S.zone=+$('selZone').value;S.sound=$('chkSound').checked;
   try{localStorage.setItem('wall.v1',JSON.stringify(S))}catch(e){}}
 try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam;if(g.zone)S.zone=+g.zone;S.rec=!!g.rec}catch(e){}
