@@ -126,10 +126,18 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
     <h2>⏸ 잠시 멈춤</h2>
     <p class="sub center">타이머와 경기가 멈춰 있어요</p>
     <button class="btn" id="btnResume">계속하기</button>
+    <button class="btn ghost" id="btnRetryPause" style="font-size:18px;min-height:46px">↺ 이 선수 재경기</button>
     <div class="row"><button class="btn ghost" id="btnPauseSetup">설정으로</button><a class="btn ghost" href="../" id="btnPauseHome" style="display:flex;align-items:center;justify-content:center;text-decoration:none">첫 화면</a></div>
   </div>
 </div>
 <div id="recToast" hidden><span id="recMsg">녹화가 끝났어요</span><a class="btn" id="recDl" download>내려받기</a><a class="btn ghost" id="recGo" href="../" hidden style="font-size:18px;min-height:44px;padding:8px 14px;text-decoration:none;display:inline-flex;align-items:center">첫 화면으로</a><button class="btn ghost" id="recClose" style="font-size:18px;min-height:44px;padding:8px 14px">닫기</button></div>
+<div class="overlay" id="ovRetryAsk" hidden style="z-index:7">
+  <div class="panel center" style="max-width:420px">
+    <h2>이 선수 재경기할까요?</h2>
+    <p class="sub center">지금까지의 이번 차례 기록은 지워지고, 같은 선수가 처음부터 다시 해요.</p>
+    <div class="row"><button class="btn ghost" id="btnRetryNo">아니요</button><button class="btn" id="btnRetryYes">재경기</button></div>
+  </div>
+</div>
 <div class="overlay" id="ovLeave" hidden>
   <div class="panel center" style="max-width:420px">
     <h2>경기를 그만두고 나갈까요?</h2>
@@ -146,11 +154,11 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
 <div class="overlay" id="ovSetup">
   <div class="panel">
     <h1><span class="r">50m</span> 달리기</h1>
-    <p class="sub">제자리에서 무릎을 높이 들며 뛰면 화면 아래 트랙의 내 선수가 달려요. 다른 모둠 기록은 그림자 선수로 함께 달려요.</p>
+    <p class="sub">제자리에서 팔을 힘차게 흔들고 무릎을 들며 뛰면 화면 아래 트랙의 내 선수가 달려요. 다른 모둠 기록은 그림자 선수로 함께 달려요.</p>
     <div class="steps">
       <div><b>① 차렷·준비</b>온몸이 보이게 가만히 서요</div>
       <div><b>② 탕!</b>신호가 나면 그때 출발! 먼저 뛰면 부정 출발</div>
-      <div><b>③ 무릎 높이</b>무릎을 높이, 빠르게 번갈아 들어요</div>
+      <div><b>③ 팔·다리</b>팔을 크게 흔들고 무릎을 들어요. 둘 다 걸음으로 세요</div>
     </div>
     <div id="teamInfo"></div>
     <div class="grid2">
@@ -158,7 +166,7 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
         <select id="selDist"><option value="30">30m</option><option value="50" selected>50m</option><option value="100">100m</option></select></label>
       <label class="f">라운드 수 (모둠마다 한 사람씩)
         <select id="selRounds"><option value="auto">모둠 인원수만큼</option><option value="1">1라운드</option><option value="2" >2라운드</option><option value="3">3라운드</option><option value="4">4라운드</option></select></label>
-      <label class="f">무릎 높이 기준
+      <label class="f">동작 크기 기준
         <select id="selLift"><option value="low">낮게 (3~4학년)</option><option value="mid" selected>보통 (5~6학년)</option><option value="high">높게 (어른)</option></select></label>
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
@@ -168,7 +176,7 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
     <label class="check"><input type="checkbox" id="chkRec">경기 자동 녹화 (대회 전체에 적용)</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
     <p class="msg" id="setupMsg"></p>
-    <p class="note">기기를 3m쯤 앞에 세우고 머리부터 발까지 다 보이게 서 주세요. 무릎이 잘 보여야 걸음을 셀 수 있어요. 기록은 몸짓으로 계산한 게임 기록이라 실제 50m 기록과는 달라요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>
+    <p class="note">기기를 3m쯤 앞에 세우고 머리부터 발까지 다 보이게 서 주세요. 어깨와 엉덩이만 보여도 팔 흔들기로 걸음을 세요. 기록은 몸짓으로 계산한 게임 기록이라 실제 50m 기록과는 달라요. 휴대폰·태블릿은 크롬에서 주소로 열어야 카메라가 켜져요.</p>
     <p class="credit">만든이 kingkongssam</p>
   </div>
 </div>
@@ -190,6 +198,7 @@ tr.total td{font-family:var(--display);font-size:22px;border-bottom:0}
     <p class="sub center" id="turnVs"></p>
     <button class="btn ghost" id="btnSaveRec" hidden style="font-size:18px;min-height:46px">⏺ 지금까지 녹화 내려받기</button>
     <button class="btn" id="btnNext">다음 차례</button>
+    <button class="btn ghost" id="btnRetry" style="font-size:17px;min-height:44px">↺ 이 선수 재경기 (오류 났을 때)</button>
   </div>
 </div>
 
@@ -368,7 +377,7 @@ const cv=$('cv'), ctx=cv.getContext('2d'), vid=$('vid');
 
 /* ---------- 설정 ---------- */
 // up: 무릎을 이만큼(몸통 길이 비율) 들어야 한 걸음, stride: 한 걸음에 나아가는 거리(m)
-const LIFT={low:{up:.14,stride:1.35},mid:{up:.2,stride:1.35},high:{up:.28,stride:1.35}};
+const LIFT={low:{up:.14,arm:.16,stride:1.35},mid:{up:.2,arm:.22,stride:1.35},high:{up:.28,arm:.3,stride:1.35}};
 const LIMIT=60; // 한 사람 최대 시간(초)
 const S={dist:50,rounds:2,lift:'mid',cam:'user',mirror:true,sound:true,zone:.7,rec:false};
 try{Object.assign(S,JSON.parse(localStorage.getItem('dash50.v1')||'{}'))}catch(e){}
@@ -489,7 +498,25 @@ function readBody(f){
   const lk=P(25),rk=P(26);
   return{P,torso,kneesOk:lk.v>.45&&rk.v>.45};
 }
-function resetLegs(){for(const g of legs){g.base=null;g.up=false;g.minRel=9;g.flash=0}}
+// 팔(손목 15·16, 안 보이면 팔꿈치 13·14)이 어깨(11·12) 쪽으로 올라오는 흔들기를 걸음으로 셈
+const arms=[{sh:11,el:13,wr:15,base:null,up:false,flash:0},{sh:12,el:14,wr:16,base:null,up:false,flash:0}];
+function resetLegs(){for(const g of legs){g.base=null;g.up=false;g.minRel=9;g.flash=0}for(const a of arms){a.base=null;a.up=false;a.flash=0}G.lastStepAt=0}
+function trackArms(b,now,onStep){
+  const T=LIFT[S.lift].arm;
+  for(let i=0;i<2;i++){
+    const a=arms[i],sh=b.P(a.sh);let p=b.P(a.wr);if(p.v<.45)p=b.P(a.el);if(p.v<.45)continue;
+    const rel=(p.y-sh.y)/b.torso; // 팔을 내리고 있으면 크고, 앞으로 흔들어 올리면 작아짐
+    if(a.base==null)a.base=rel;
+    if(rel>a.base)a.base=rel;else if(!a.up)a.base+=(rel-a.base)*.01;
+    if(!a.up&&rel<a.base-T){a.up=true;a.flash=now;onStep(2+i,now)}
+    else if(a.up&&rel>a.base-T*.45)a.up=false;
+  }
+}
+// 다리·팔 신호를 한 걸음으로 합치기: 같은 걸음에서 나온 신호(140ms 안)는 한 번만
+function stepSignal(src,now){
+  if(now-(G.lastStepAt||0)<140)return;
+  G.lastStepAt=now;onStep(src,now);
+}
 function trackLegs(b,now,onStep){ // 새 인식 결과마다 호출
   const T=LIFT[S.lift].up;
   for(let i=0;i<2;i++){
@@ -515,7 +542,7 @@ function onStep(i,now){
   if(G.phase!=='run')return;
   G.steps++;G.stepTimes.push(now);
   G.d=Math.min(S.dist,G.d+LIFT[S.lift].stride);
-  sfx.step(i);
+  sfx.step(i%2);
   if(G.d>=S.dist&&G.finishT==null){G.finishT=(now-G.t0)/1000;finish(now)}
 }
 function falseStart(now){
@@ -532,7 +559,6 @@ function startSequence(){
 function seqTick(now,b){
   if(G.phase==='marks'){
     if(!b){coach('온몸이 화면에 보이게 서 주세요',{small:true,warn:true});G.stillSince=0;return}
-    if(!b.kneesOk){coach('무릎까지 보이게 뒤로 물러서 주세요',{small:true,warn:true});G.stillSince=0;return}
     if(!G.stillSince)G.stillSince=now;
     if(now-G.stillSince>400)coach('차렷');
     if(now-G.stillSince>1200){G.phase='set';G.setAt=now;G.gunAt=now+1000+Math.random()*1500;coach('준비');sfx.ready()}
@@ -568,6 +594,8 @@ function drawSkeleton(f,now){
     for(const[a,b]of BONES){const p=P(a),q=P(b);if(p.v<.35||q.v<.35)continue;ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y)}ctx.stroke()}
   for(const g of legs){const k=P(g.knee);if(k.v<.45)continue;
     const fl=now-g.flash<220;ctx.beginPath();ctx.arc(k.x,k.y,lw*(fl?5:2.6),0,Math.PI*2);ctx.fillStyle=fl?'#ffd23f':col;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke()}
+  for(const a of arms){let p=P(a.wr);if(p.v<.45)p=P(a.el);if(p.v<.45)continue;
+    const fl=now-a.flash<220;ctx.beginPath();ctx.arc(p.x,p.y,lw*(fl?5:2.6),0,Math.PI*2);ctx.fillStyle=fl?'#ffd23f':col;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.stroke()}
 }
 function trackGeom(){
   const th=Math.max(80,Math.min(140,H*.17)),y=H-th-Math.max(8,0);
@@ -630,13 +658,12 @@ function frameGame(now){
   drawVideo(f);
   if(G.phase==='ready')drawZone(f);
   const b=(G.phase!=='setup'&&G.phase!=='final')?readBody(f):null;
-  if(b&&lmTime!==G.lastLm){G.lastLm=lmTime;trackLegs(b,now,onStep)}
+  if(b&&lmTime!==G.lastLm){G.lastLm=lmTime;trackLegs(b,now,stepSignal);trackArms(b,now,stepSignal)}
   if(G.phase==='marks'||G.phase==='set')seqTick(now,b);
   if(G.phase==='run'){
     G.elapsed=(now-G.t0)/1000;
     if(!G.trace.length||G.elapsed-G.trace[G.trace.length-1][0]>.1)G.trace.push([+G.elapsed.toFixed(2),G.d]);
     if(!b&&G.elapsed>1)coach('몸이 화면 밖으로 나갔어요',{small:true,warn:true});
-    else if(b&&!b.kneesOk&&G.elapsed>1)coach('무릎이 보이게 서 주세요',{small:true,warn:true});
     else if(G.elapsed>.8&&$('coach').classList.contains('small'))coach('');
     if(G.elapsed>=LIMIT)giveUp(now);
   }
@@ -794,6 +821,22 @@ $('btnRec').addEventListener('click',()=>{if(rec)stopRec();else startRec()});
 $('btnSaveRec').addEventListener('click',()=>{if(!rec)return;G.recResume=true;stopRec();$('btnSaveRec').hidden=true});
 window.addEventListener('beforeunload',e=>{if(rec){e.preventDefault();e.returnValue=''}});
 $('recClose').addEventListener('click',()=>show('recToast',false));
+
+/* ---------- 이 선수 재경기: 이번 차례 기록만 지우고 같은 차례를 다시 ---------- */
+function retryTurn(){
+  const ri=G.round-1;
+  if(G.res&&Array.isArray(G.res[G.team]))G.res[G.team][ri]=undefined;
+  if(G.scores&&Array.isArray(G.scores[G.team]))G.scores[G.team][ri]=undefined;
+  if(G.stats&&Array.isArray(G.stats[G.team]))G.stats[G.team][ri]=undefined;
+  G.retried=(G.retried||0)+1;
+  if(G.paused)resumeGame();
+  show('ovPause',false);
+  goReady();
+}
+$('btnRetry').addEventListener('click',retryTurn);
+$('btnRetryPause').addEventListener('click',()=>{$('ovRetryAsk').hidden=false});
+$('btnRetryYes').addEventListener('click',()=>{$('ovRetryAsk').hidden=true;retryTurn()});
+$('btnRetryNo').addEventListener('click',()=>{$('ovRetryAsk').hidden=true});
 // 🏠 첫 화면으로: 경기 중이면 한 번 더 묻기
 $('btnHub').addEventListener('click',e=>{
   const busy=!['setup','ready','final','turnEnd'].includes(G.phase);

@@ -126,10 +126,18 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <h2>⏸ 잠시 멈춤</h2>
     <p class="sub center">타이머와 경기가 멈춰 있어요</p>
     <button class="btn" id="btnResume">계속하기</button>
+    <button class="btn ghost" id="btnRetryPause" style="font-size:18px;min-height:46px">↺ 이 선수 재경기</button>
     <div class="row"><button class="btn ghost" id="btnPauseSetup">설정으로</button><a class="btn ghost" href="../" id="btnPauseHome" style="display:flex;align-items:center;justify-content:center;text-decoration:none">첫 화면</a></div>
   </div>
 </div>
 <div id="recToast" hidden><span id="recMsg">녹화가 끝났어요</span><a class="btn" id="recDl" download>내려받기</a><a class="btn ghost" id="recGo" href="../" hidden style="font-size:18px;min-height:44px;padding:8px 14px;text-decoration:none;display:inline-flex;align-items:center">첫 화면으로</a><button class="btn ghost" id="recClose" style="font-size:18px;min-height:44px;padding:8px 14px">닫기</button></div>
+<div class="overlay" id="ovRetryAsk" hidden style="z-index:7">
+  <div class="panel center" style="max-width:420px">
+    <h2>이 선수 재경기할까요?</h2>
+    <p class="sub center">지금까지의 이번 차례 기록은 지워지고, 같은 선수가 처음부터 다시 해요.</p>
+    <div class="row"><button class="btn ghost" id="btnRetryNo">아니요</button><button class="btn" id="btnRetryYes">재경기</button></div>
+  </div>
+</div>
 <div class="overlay" id="ovLeave" hidden>
   <div class="panel center" style="max-width:420px">
     <h2>경기를 그만두고 나갈까요?</h2>
@@ -192,6 +200,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <p class="sub center" id="turnEnd"></p>
     <button class="btn ghost" id="btnSaveRec" hidden style="font-size:18px;min-height:46px">⏺ 지금까지 녹화 내려받기</button>
     <button class="btn" id="btnNext">다음 차례</button>
+    <button class="btn ghost" id="btnRetry" style="font-size:17px;min-height:44px">↺ 이 선수 재경기 (오류 났을 때)</button>
   </div>
 </div>
 
@@ -830,6 +839,22 @@ $('btnRec').addEventListener('click',()=>{if(rec)stopRec();else startRec()});
 $('btnSaveRec').addEventListener('click',()=>{if(!rec)return;G.recResume=true;stopRec();$('btnSaveRec').hidden=true});
 window.addEventListener('beforeunload',e=>{if(rec){e.preventDefault();e.returnValue=''}});
 $('recClose').addEventListener('click',()=>show('recToast',false));
+
+/* ---------- 이 선수 재경기: 이번 차례 기록만 지우고 같은 차례를 다시 ---------- */
+function retryTurn(){
+  const ri=G.round-1;
+  if(G.res&&Array.isArray(G.res[G.team]))G.res[G.team][ri]=undefined;
+  if(G.scores&&Array.isArray(G.scores[G.team]))G.scores[G.team][ri]=undefined;
+  if(G.stats&&Array.isArray(G.stats[G.team]))G.stats[G.team][ri]=undefined;
+  G.retried=(G.retried||0)+1;
+  if(G.paused)resumeGame();
+  show('ovPause',false);
+  goReady();
+}
+$('btnRetry').addEventListener('click',retryTurn);
+$('btnRetryPause').addEventListener('click',()=>{$('ovRetryAsk').hidden=false});
+$('btnRetryYes').addEventListener('click',()=>{$('ovRetryAsk').hidden=true;retryTurn()});
+$('btnRetryNo').addEventListener('click',()=>{$('ovRetryAsk').hidden=true});
 // 🏠 첫 화면으로: 경기 중이면 한 번 더 묻기
 $('btnHub').addEventListener('click',e=>{
   const busy=!['setup','ready','final','turnEnd'].includes(G.phase);
