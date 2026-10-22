@@ -149,7 +149,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
         <select id="selLevel"><option value="easy">쉬움 (폭탄 없음)</option><option value="normal" selected>보통</option><option value="hard">어려움</option></select></label>
     </div>
     <details class="dev"><summary>기기 설정 <span>카메라 · 거울 · 효과음</span></summary><div class="devin"><label class="f">카메라
-        <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
+        <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <label class="check"><input type="checkbox" id="chkSound" checked>효과음 켜기</label></div></details>
     <button class="btn" id="btnStart">시작하기</button>
@@ -356,11 +356,12 @@ const LEVEL={
 };
 const S={time:30,rounds:3,level:'normal',cam:'user',mirror:true,sound:true};
 try{Object.assign(S,JSON.parse(localStorage.getItem('balloonBattle.v2')||'{}'))}catch(e){}
-function loadForm(){$('selTime').value=S.time;$('selRounds').value=S.roundsSel||'auto';
+function loadForm(){if(S.cam&&S.cam.length>20){const sel=$('selCam');if(![...sel.options].some(o=>o.value===S.cam)){const o=document.createElement('option');o.value=S.cam;o.dataset.dev='1';o.textContent='📷 점검에서 고른 카메라';sel.appendChild(o)}}$('selTime').value=S.time;$('selRounds').value=S.roundsSel||'auto';
   $('selLevel').value=S.level;$('selCam').value=S.cam;$('chkMirror').checked=S.mirror;$('chkSound').checked=S.sound}
 function readForm(){S.time=+$('selTime').value;
   S.roundsSel=$('selRounds').value;S.rounds=S.roundsSel==='auto'?PE.maxMembers():+S.roundsSel;S.level=$('selLevel').value;S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;S.sound=$('chkSound').checked;
   try{localStorage.setItem('balloonBattle.v2',JSON.stringify(S))}catch(e){}}
+try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');if(g.cam&&g.cam.length>20&&!(S.cam&&S.cam.length>20))S.cam=g.cam}catch(e){}
 loadForm();
 PE.setupInfo($('teamInfo'));
 
@@ -397,9 +398,26 @@ async function initPose(){
 }
 async function startCamera(){
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 열어 주세요.');
-  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:S.cam,width:{ideal:1280},height:{ideal:720}}});
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 주소(https://…)로 열어 주세요.');
+  // 카메라 고르기: 목록에서 고른 기기(deviceId) 또는 앞/뒤
+  const video=S.cam&&S.cam.length>20?{deviceId:{exact:S.cam},width:{ideal:1280},height:{ideal:720}}:{facingMode:S.cam||'user',width:{ideal:1280},height:{ideal:720}};
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video})}
+  catch(e){if(S.cam&&S.cam.length>20){stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user'}})}else throw e}
   vid.srcObject=stream;await vid.play();
+  listCameras();
+}
+// 허용 뒤에 실제 카메라 이름을 목록에 추가 (노트북 내장·USB 웹캠을 이름으로 고를 수 있게)
+async function listCameras(){
+  try{
+    const sel=$('selCam');if(!sel||!navigator.mediaDevices.enumerateDevices)return;
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    [...sel.querySelectorAll('option[data-dev]')].forEach(o=>o.remove());
+    devs.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.dataset.dev='1';
+      const lab=d.label||`카메라 ${i+1}`;o.textContent='📷 '+(/(integrated|built|facetime|내장)/i.test(lab)?'내장 ':/(usb|webcam|logi|c9)/i.test(lab)?'USB ':'')+lab.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i,'');sel.appendChild(o)});
+    if(S.cam&&S.cam.length>20&&[...sel.options].some(o=>o.value===S.cam))sel.value=S.cam;
+    const cur=stream&&stream.getVideoTracks()[0];
+    if(cur){const id=cur.getSettings().deviceId;if(id&&!(S.cam&&S.cam.length>20)&&[...sel.options].some(o=>o.value===id)){sel.value=id}}
+  }catch(e){}
 }
 async function detectLoop(){
   if(detecting)return;detecting=true;

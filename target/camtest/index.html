@@ -71,7 +71,7 @@ select{width:100%;font:inherit;font-size:17px;color:var(--text);background:var(-
     <h1>카메라 점검</h1>
     <p class="sub">게임을 시작하기 전에 카메라가 잘 되는지 6가지를 확인해요. 기기를 세워 두고 평소 게임하듯 서 보세요.</p>
     <label class="f">카메라
-      <select id="selCam"><option value="user" selected>앞 카메라 (셀카)</option><option value="environment">뒤 카메라</option></select></label>
+      <select id="selCam"><option value="user" selected>앞 카메라 (화면 쪽)</option><option value="environment">뒤 카메라</option></select></label>
     <label class="check"><input type="checkbox" id="chkMirror" checked>거울처럼 좌우 뒤집기</label>
     <button class="btn big" id="btnStart">점검 시작</button>
     <p class="msg" id="setupMsg"></p>
@@ -101,8 +101,25 @@ async function initPose(){
 async function startCamera(){
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('이 브라우저에서는 카메라를 쓸 수 없어요. 크롬에서 주소(https://…)로 열어 주세요.');
-  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:S.cam,width:{ideal:1280},height:{ideal:720}}});
+  // 카메라 고르기: 목록에서 고른 기기(deviceId) 또는 앞/뒤
+  const video=S.cam&&S.cam.length>20?{deviceId:{exact:S.cam},width:{ideal:1280},height:{ideal:720}}:{facingMode:S.cam||'user',width:{ideal:1280},height:{ideal:720}};
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video})}
+  catch(e){if(S.cam&&S.cam.length>20){stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user'}})}else throw e}
   vid.srcObject=stream;await vid.play();
+  listCameras();
+}
+// 허용 뒤에 실제 카메라 이름을 목록에 추가 (노트북 내장·USB 웹캠을 이름으로 고를 수 있게)
+async function listCameras(){
+  try{
+    const sel=$('selCam');if(!sel||!navigator.mediaDevices.enumerateDevices)return;
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    [...sel.querySelectorAll('option[data-dev]')].forEach(o=>o.remove());
+    devs.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.dataset.dev='1';
+      const lab=d.label||`카메라 ${i+1}`;o.textContent='📷 '+(/(integrated|built|facetime|내장)/i.test(lab)?'내장 ':/(usb|webcam|logi|c9)/i.test(lab)?'USB ':'')+lab.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i,'');sel.appendChild(o)});
+    if(S.cam&&S.cam.length>20&&[...sel.options].some(o=>o.value===S.cam))sel.value=S.cam;
+    const cur=stream&&stream.getVideoTracks()[0];
+    if(cur){const id=cur.getSettings().deviceId;if(id&&!(S.cam&&S.cam.length>20)&&[...sel.options].some(o=>o.value===id)){sel.value=id}}
+  }catch(e){}
 }
 async function detectLoop(){
   if(detecting)return;detecting=true;
@@ -224,7 +241,7 @@ function releaseAwake(){try{if(wake){wake.release();wake=null}}catch(e){}try{if(
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)keepAwake()});
 let camFacing=null;
 $('btnStart').addEventListener('click',async()=>{
-  S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;
+  S.cam=$('selCam').value;S.mirror=$('chkMirror').checked;try{const g=JSON.parse(localStorage.getItem('pegames.v1')||'{}');g.cam=S.cam;localStorage.setItem('pegames.v1',JSON.stringify(g))}catch(e){}
   const btn=$('btnStart'),msg=$('setupMsg');btn.disabled=true;
   try{
     if(!stream||camFacing!==S.cam){msg.textContent='카메라를 켜는 중…';await startCamera();camFacing=S.cam}
