@@ -113,6 +113,30 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
 .winner.c{color:#5f8bff}.winner.b{color:#fff}.winner.d{color:var(--gold)}
 .note{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
 .credit{font-size:12px;color:var(--muted);text-align:right;margin:0;opacity:.8}
+/* 준비 화면: 가운데를 비워 선수 몸이 보이게, 아래쪽에 작게 */
+#ovReady{align-content:end;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}
+#ovReady .panel{max-width:760px;background:rgba(10,16,14,.78);backdrop-filter:blur(2px);padding:12px 16px;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+#ovReady .big-turn{font-size:clamp(22px,4.4vw,40px)}
+#ovReady .vsrow .big-turn{font-size:clamp(18px,4vw,34px)}
+#ovReady .btn{min-height:50px;padding:10px 18px}
+#ovReady .sub{font-size:13px}
+#readySeen{align-self:center;font-size:clamp(14px,2.4vmin,18px);font-weight:700;padding:.3em 1em;border-radius:999px;background:rgba(255,59,78,.9);color:#fff}
+#readySeen.ok{background:rgba(34,163,90,.95)}
+#readySeen.warn{background:rgba(232,168,0,.95);color:#2a1f00}
+@media (min-width:700px){
+  #ovReady .panel{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:16px;row-gap:4px;padding:10px 16px;background:rgba(10,16,14,.62)}
+  #ovReady .panel>.sub{flex-basis:100%;margin:0}
+  #ovReady .panel>.btn{flex:0 0 auto;min-width:180px}
+  #ovReady .vsrow{flex:0 1 auto}
+  #ovReady .vsrow .side{display:none}
+  #ovReady .panel{max-width:960px}
+  #ovReady .panel>*{order:4}
+  #ovReady #readyRound{order:0}
+  #ovReady .panel>.big-turn,#ovReady .vsrow{order:1;flex:0 1 auto;width:auto}
+  #ovReady #readySeen{order:2}
+  #ovReady .panel>.btn{order:3}
+  #ovReady .panel>.sub:not(#readyRound){font-size:12px;opacity:.85}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -194,6 +218,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
     <div id="readyRound" class="sub center"></div>
     <div id="readyTeam" class="big-turn c">청 차례</div>
     <p class="sub center" id="readyHint">과녁 쪽으로 활 팔을 뻗고, 다른 손을 턱 옆으로 당겨요</p>
+    <div id="readySeen">카메라 확인 중…</div>
     <button class="btn" id="btnGo">경기 시작</button>
   </div>
 </div>
@@ -850,7 +875,23 @@ function resumeGame(){
   if(!G.paused)return;
   pausedTotal+=performance.now()-pauseAt;G.paused=false;show('ovPause',false);keepAwake();
 }
+/* 준비 화면 인식 표시: 선수가 잡혔는지 패널에 바로 보여 줌 */
+function readyStatus(){
+  const el=document.getElementById('readySeen');if(!el)return;
+  if(G.phase!=='ready'){return}
+  let cls='',txt='';
+  const fresh=lm&&gnow()-lmTime<800;
+  if(!fresh){txt='✗ 선수가 안 보여요 · 화면 안으로 들어와 주세요'}
+  else{
+    const v=i=>lm[i]&&(lm[i].visibility??1);
+    if(Math.min(v(11),v(12))<.3){txt='✗ 어깨가 안 보여요'}
+    else if(Math.min(v(27),v(28))<.4){cls='warn';txt='✓ 인식됨 · 발이 안 보이면 한 걸음 뒤로'}
+    else{cls='ok';txt='✓ 선수 인식됨 · 온몸이 보여요'}
+  }
+  if(el.textContent!==txt)el.textContent=txt;el.className=cls;
+}
 function frame(raw){
+  readyStatus();
   $('btnPause').hidden=!PAUSABLE.includes(G.phase)||!!G.paused;
   if(rec&&recTrack&&recTrack.requestFrame){try{recTrack.requestFrame()}catch(e){}}
   if(G.paused){requestAnimationFrame(frame);return}
