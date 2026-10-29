@@ -184,7 +184,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   <div class="panel center">
     <div id="readyRound" class="sub center"></div>
     <div id="readyTeam" class="big-turn c">청 골키퍼</div>
-    <p class="sub center">가운데 서서 무릎을 살짝 굽히고 준비해요</p>
+    <p class="sub center">가운데 똑바로 서면 키에 맞춰 골대가 생겨요</p>
     <button class="btn" id="btnGo">경기 시작</button>
   </div>
 </div>
@@ -527,17 +527,28 @@ function blocks(b,x,y,r){
 const G={phase:'setup',round:1,team:0,res:PE.teams.map(()=>[]),shots:[],shotNo:0,goal:null,ball:null,nextAt:0,cue:0,fx:[],net:0,flash:0,flashCol:''};
 function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
+window.__G=G;
 function coach(txt,warn){const c=$('coach');if(!txt){c.hidden=true;return}c.hidden=false;c.textContent=txt;c.classList.toggle('warn',!!warn)}
 
+/* 골대를 선수 키·몸집에 맞춤: 준비 화면에서 똑바로 선 자세를 여러 번 재어 중앙값으로 정함
+   (한 순간 값이면 무릎 굽힘·흔들림에 따라 골대가 들쭉날쭉) — 손을 위로 뻗으면 닿는 높이까지가 골대 */
+function measureKeeper(f){
+  const b=readBody(f);if(!b)return;
+  const ank=[b.P(27),b.P(28)].filter(p=>p.v>.4);
+  const foot=ank.length?Math.max(...ank.map(p=>p.y))+b.torso*.12:b.hc.y+b.torso*1.9;
+  const head=b.n.v>.4?b.n.y:b.sc.y-b.torso*.5;
+  (G.calS=G.calS||[]).push({head,foot,cx:b.hc.x,torso:b.torso});if(G.calS.length>40)G.calS.shift();
+}
 function placeGoal(f){ // 학생 둘레에 골대
-  const b=readBody(f);
   let cx=W/2,bottom=H-12,top=H*.12,half=Math.min(W*.42,H*.75);
-  if(b){
-    const ank=[b.P(27),b.P(28)].filter(p=>p.v>.4);
-    const footY=ank.length?Math.max(...ank.map(p=>p.y))+b.torso*.12:b.hc.y+b.torso*1.9;
-    cx=b.hc.x;bottom=Math.min(H-6,footY);
-    top=Math.max(70,(b.n.v>.4?b.n.y:b.sc.y-b.torso*.5)-b.torso*1.05);
-    half=Math.min(W*.46,Math.max(W*.2,b.torso*LEVEL[S.level].wide));
+  const S_=G.calS||[];
+  if(S_.length){
+    const med=k=>{const a=S_.map(x=>x[k]).sort((x,y)=>x-y);return a[a.length>>1]};
+    const head=med('head'),foot=med('foot'),torso=med('torso');
+    cx=med('cx');bottom=Math.min(H-6,foot);
+    top=Math.max(70,head-torso*.95); // 머리 위로 손 뻗어 닿는 높이
+    half=Math.min(W*.46,Math.max(W*.2,torso*LEVEL[S.level].wide));
+    G.calN=S_.length;
   }
   cx=Math.min(W-half-8,Math.max(half+8,cx));
   G.goal={x0:cx-half,x1:cx+half,top,bottom,cx};
@@ -681,7 +692,7 @@ function frameGame(now){
   if(G.phase==='ready')drawZone(f);
   const b=(G.phase==='play'||G.phase==='ready')?readBody(f):null;
   if(b)lastSeen=now;
-  if(G.phase==='ready')placeGoal(f);
+  if(G.phase==='ready'){measureKeeper(f);placeGoal(f)}
   drawGoal(now);
   drawSkeleton(f);
   if(G.phase==='play'&&!G.ball){
@@ -702,7 +713,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map((r,ri)=>[r?r.saves:null,i,ri+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 선방',true,b?b[2]:null)}G.shots=[];G.shotNo=0;G.ball=null;G.cue=0;
+  G.calS=[];G.calN=0;  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map((r,ri)=>[r?r.saves:null,i,ri+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 선방',true,b?b[2]:null)}G.shots=[];G.shotNo=0;G.ball=null;G.cue=0;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);coach('');
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · 공 ${S.shots}개`;
   PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
@@ -711,7 +722,7 @@ function goReady(){
 function countdown(){
   if(G.phase!=='ready')return;
   if(S.rec&&!rec)startRec();
-  placeGoal(fit());
+  measureKeeper(fit());placeGoal(fit());
   G.phase='count';allHidden();show('ovCount',true);
   let n=3;$('count').textContent=n;sfx.count();
   const iv=setInterval(()=>{
