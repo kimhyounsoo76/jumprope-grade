@@ -187,7 +187,7 @@ tr.total td{font-family:var(--display);font-size:24px;border-bottom:0}
   <div class="panel center">
     <div id="readyRound" class="sub center"></div>
     <div id="readyTeam" class="big-turn c">청 차례</div>
-    <p class="sub center">화면 가운데에 서서 준비해요</p>
+    <p class="sub center">화면 가운데에 똑바로 서면 키를 재요 (노란 선)</p>
     <button class="btn" id="btnGo">경기 시작</button>
   </div>
 </div>
@@ -528,9 +528,35 @@ const G={phase:'setup',round:1,team:0,res:PE.teams.map(()=>[]),lives:LIVES,dodge
   balls:[],warns:[],nextAt:0,fx:[],flash:0,inv:0,lastTick:0};
 function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
+window.__G=G;
 function coach(txt,warn){const c=$('coach');if(!txt){c.hidden=true;return}c.hidden=false;c.textContent=txt;c.classList.toggle('warn',!!warn)}
 const total=()=>G.dodged.high+G.dodged.low+G.dodged.front;
 
+/* 선수 키 맞춤: 준비 화면에서 서 있는 자세로 머리·발 높이를 재고(중앙값),
+   경기 중에는 '똑바로 서 있을 때'만 천천히 따라감 → 점프·숙이기에 흔들리지 않고, 앞뒤로 움직여도 맞춰짐 */
+function headOf(b){return b.n.v>.4?b.n.y:b.sc.y-b.torso*.5}
+function calibrate(b,now){
+  const head=headOf(b),ratio=(b.hc.y-head)/b.torso,foot=b.footY;
+  if(G.phase==='ready'){
+    (G.calS=G.calS||[]).push({head,foot,ratio});if(G.calS.length>40)G.calS.shift();
+    const med=k=>{const a=G.calS.map(x=>x[k]).sort((x,y)=>x-y);return a[a.length>>1]};
+    G.headY=med('head');G.floorY=med('foot');G.calRatio=med('ratio');G.calN=G.calS.length;
+    return;
+  }
+  if(G.headY==null){G.headY=head;G.floorY=foot;G.calRatio=ratio;return}
+  // 똑바로 선 자세(머리~엉덩이 비율이 잰 값과 비슷, 발이 바닥 근처)일 때만 맞춤값을 조금씩 갱신
+  const standing=Math.abs(ratio-G.calRatio)<G.calRatio*.12&&Math.abs(foot-G.floorY)<b.torso*.25;
+  if(standing){G.headY+=(head-G.headY)*.04;G.floorY+=(foot-G.floorY)*.04}
+}
+function drawCal(){ // 준비 화면: 잰 키를 선으로 보여 줌
+  if(G.phase!=='ready'||G.headY==null||!(G.calN>=10))return;
+  ctx.save();ctx.setLineDash([10,8]);ctx.lineWidth=3;ctx.strokeStyle='rgba(255,210,63,.9)';
+  ctx.beginPath();ctx.moveTo(W*.15,G.headY);ctx.lineTo(W*.85,G.headY);ctx.moveTo(W*.15,G.floorY);ctx.lineTo(W*.85,G.floorY);ctx.stroke();
+  ctx.setLineDash([]);ctx.font=`${Math.round(Math.max(14,Math.min(W,H)*.028))}px 'Gowun Dodum',sans-serif`;ctx.textBaseline='bottom';ctx.textAlign='left';
+  ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.fillStyle='#ffd23f';
+  ctx.strokeText('키 맞춤 ✓ 높은 공',W*.15,G.headY-4);ctx.fillText('키 맞춤 ✓ 높은 공',W*.15,G.headY-4);
+  ctx.strokeText('낮은 공',W*.15,G.floorY-4);ctx.fillText('낮은 공',W*.15,G.floorY-4);ctx.restore();
+}
 function ballR(b){return Math.max(Math.min(W,H)*.03,Math.min(Math.min(W,H)*.075,b.torso*.22))}
 function schedule(now,b){ // 다음 공 정하기: 미리 경고를 띄움
   const L=LEVEL[S.level];
@@ -676,9 +702,7 @@ function frameGame(now){
   if(G.phase==='ready')drawZone(f);
   const b=(G.phase==='play'||G.phase==='ready')?readBody(f):null;
   if(b){lastSeen=now;
-    const ny=b.n.v>.4?b.n.y:b.sc.y-b.torso*.5;
-    if(G.headY==null||ny<G.headY)G.headY=ny;else if(ny-G.headY<b.torso*.2)G.headY+=(ny-G.headY)*.01; // 서 있을 때만 천천히 따라감(숙일 땐 무시)      // 가장 높았던 머리 위치
-    if(G.floorY==null||b.footY>G.floorY)G.floorY=b.footY;else if(G.floorY-b.footY<b.torso*.2)G.floorY+=(b.footY-G.floorY)*.01; // 바닥: 내려가면 바로, 점프 중엔 무시
+    calibrate(b,now);
   }
   if(G.phase==='play'){
     G.left=Math.max(0,S.time-(now-G.t0)/1000);
@@ -694,6 +718,7 @@ function frameGame(now){
     if(G.left<=0){G.phase='wait';coach('시간 끝! 살아남았어요 🎉');sfx.end();setTimeout(()=>{if(G.phase==='wait')endTurn(false)},1600)}
   }
   drawWarns(now);
+  drawCal();
   drawSkeleton(f,now);
   if(G.phase==='play'||G.phase==='wait')updateBalls(now,f);
   drawFx();
@@ -706,7 +731,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map((r,ri)=>[r?r.dodged:null,i,ri+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 피함',true,b?b[2]:null)}G.headY=null;G.floorY=null;G.lives=LIVES;G.dodged={high:0,low:0,front:0};G.hitsTaken=0;G.balls=[];G.warns=[];G.left=S.time;G.inv=0;
+  G.phase='ready';{const b=PE.bestOf(G.res.flatMap((a,i)=>a.map((r,ri)=>[r?r.dodged:null,i,ri+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'개 피함',true,b?b[2]:null)}G.headY=null;G.floorY=null;G.calS=[];G.calN=0;G.lives=LIVES;G.dodged={high:0,low:0,front:0};G.hitsTaken=0;G.balls=[];G.warns=[];G.left=S.time;G.inv=0;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);coach('');
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드 · ${S.time}초`;
   PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
