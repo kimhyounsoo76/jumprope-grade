@@ -302,7 +302,7 @@ const PE=(()=>{
   function nextName(st){return name((st.team+1)%teams.length)}
   /* 넘을 기록: 차례 시작 때 setTarget(값, 모둠, 글자 만들기), 매 프레임 beat(현재값) → 처음 넘는 순간 true */
   const T={best:null,team:null,round:null,fmt:v=>v,led:false,el:null,higher:true,loop:false};
-  function ensureLoop(){if(!T.loop){T.loop=true;setInterval(place,250)}}
+  function ensureLoop(){if(!T.loop){T.loop=true;setInterval(place,250);try{new MutationObserver(()=>{if(!T.placing)place()}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']})}catch(e){}}} // 창이 열리고 닫히는 즉시 칩 위치·숨김 갱신
   /* 연습 모드: 결과를 보여 주되 종합 점수판에는 올리지 않음. 페이지를 열 때마다 '대회'로 시작(저장 안 함) */
   const PR={on:false,el:null};
   function setPractice(on){
@@ -310,9 +310,29 @@ const PE=(()=>{
     if(!PR.el){PR.el=document.createElement('div');PR.el.id='practiceTag';PR.el.textContent='🧪 연습 중 · 점수판에 안 올라가요';
       PR.el.style.cssText='position:fixed;z-index:2;left:calc(max(12px,env(safe-area-inset-left,0px)) + 52px);font-size:clamp(12px,2.4vmin,18px);padding:.25em .8em;border-radius:999px;background:rgba(139,92,246,.9);color:#fff;border:1px solid rgba(255,255,255,.4);white-space:nowrap;pointer-events:none';
       PR.el.hidden=true;document.body.appendChild(PR.el)}
-    ensureLoop();place();
+    ensureLoop();place();practiceButtons();
   }
   const isPractice=()=>PR.on;
+  /* 연습 중에는 준비·차례 끝·최종 화면에 '본 경기 시작' 버튼을 보여 줌 → 누르면 대회 모드로 처음부터 */
+  function practiceButtons(){
+    const spots=[['#ovReady .panel',null],['#ovTurn .panel',null],['#ovFinal .row',null]];
+    for(const [sel] of spots){
+      const host=document.querySelector(sel);if(!host)continue;
+      let b=host.querySelector('.go-real');
+      if(!b){
+        b=document.createElement('button');b.type='button';b.className='btn go-real';b.textContent='🏆 연습 끝 · 본 경기 시작';
+        b.style.cssText='background:#8b5cf6;box-shadow:0 4px 0 #5b3bb0;color:#fff;font-size:clamp(17px,3.6vw,22px);min-height:48px';
+        b.addEventListener('click',()=>{
+          setPractice(false);const m=document.getElementById('selMode');if(m)m.value='competition';
+          const again=document.getElementById('btnAgain');if(again)again.click();
+        });
+        host.appendChild(b);
+      }
+      b.hidden=!PR.on;
+    }
+    const again=document.getElementById('btnAgain');
+    if(again){if(!again.dataset.label)again.dataset.label=again.textContent;again.textContent=PR.on?'연습 다시 하기':again.dataset.label}
+  }
   const who=()=>T.round?`${name(T.team)} ${playerLabel(T.team,T.round)}`:name(T.team);
   function setTarget(best,team,fmt,higher=true,round=null){
     T.best=best;T.team=team;T.round=round;T.fmt=fmt||(v=>v);T.led=false;T.higher=higher;
@@ -324,7 +344,8 @@ const PE=(()=>{
     T.el.style.background='rgba(0,0,0,.55)';
   }
   // 넘을 기록 칩 자리: PC·태블릿은 라운드 표시 아래(왼쪽), 좁은 화면(휴대폰 세로)은 점수판 아래 가운데로 모아 겹치지 않게
-  function place(){
+  function place(){T.placing=true;try{placeInner()}finally{T.placing=false}}
+  function placeInner(){
     const r=document.getElementById('roundTag'),hud=document.getElementById('hud'),hb=document.querySelector('#hud .hud-box');
     if(!r)return;
     // 결과·설정 같은 불투명 창이 떠 있으면 칩을 잠시 감춤 (창 위에 겹쳐 보이지 않게)
@@ -341,7 +362,7 @@ const PE=(()=>{
       bottom=el.getBoundingClientRect().bottom;
     };
     if(T.el&&!T.el.hidden)put(T.el);
-    if(PR.el){PR.el.hidden=!(PR.on&&hud&&!hud.hidden);if(!PR.el.hidden)put(PR.el)}
+    if(PR.el){const h=!(PR.on&&hud&&!hud.hidden);if(PR.el.hidden!==h)PR.el.hidden=h;if(!PR.el.hidden)put(PR.el)}
   }
   function beat(cur){
     place();
