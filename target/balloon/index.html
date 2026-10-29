@@ -507,6 +507,7 @@ const EFFECTORS=[15,16,19,20,27,28,31,32]; // 손목·검지·발목·발끝
 const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
 function teamName(t){return PE.name(t)}
 function show(id,on){$(id).hidden=!on}
+window.__G=G;
 
 function bodyInfo(f){
   if(!lm||gnow()-lmTime>800)return null;
@@ -523,9 +524,24 @@ function targetRadius(torso,gold){
   const base=Math.max(Math.min(W,H)*.045,Math.min(Math.min(W,H)*.1,torso*.3))*LEVEL[S.level].size;
   return gold?base*.78:base;
 }
+/* 공평한 풍선 순서: 같은 라운드의 모든 선수가 똑같은 순서로 풍선 종류를 받음
+   (20개 묶음마다 금색·폭탄 개수를 난이도 비율대로 정확히 넣고 섞음) */
+function rng32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function deckAt(i){
+  const key=G.matchSeed+':'+G.round+':'+S.level;
+  if(G.deckKey!==key){G.deckKey=key;G.deck=[];G.deckRng=rng32((G.matchSeed||1)+G.round*7919)}
+  const L=LEVEL[S.level];
+  while(G.deck.length<=i){
+    const n=20,nb=Math.round(n*L.bomb),ng=Math.round(n*L.gold),bag=[];
+    for(let k=0;k<n;k++)bag.push(k<nb?'b':k<nb+ng?'g':'n');
+    for(let k=n-1;k>0;k--){const j=Math.floor(G.deckRng()*(k+1));[bag[k],bag[j]]=[bag[j],bag[k]]}
+    G.deck.push(...bag);
+  }
+  return G.deck[i];
+}
 function spawn(now,f){
   const L=LEVEL[S.level],b=bodyInfo(f);
-  const rnd=Math.random(), bomb=rnd<L.bomb, gold=!bomb&&rnd<L.bomb+L.gold;
+  const kind=deckAt(G.deckIdx), bomb=kind==='b', gold=kind==='g';
   const torso=b?b.torso:Math.min(W,H)*.25, r=targetRadius(torso,gold);
   const effs=b?EFFECTORS.map(i=>b.P(i)).filter(p=>p.v>.4):[];
   const m=r+12, top=Math.max(m,(parseFloat(getComputedStyle($('hud')).height)||0)+r*.6);
@@ -544,6 +560,7 @@ function spawn(now,f){
     const vy=-(torso*2.6*L.reach)/life*(.85+Math.random()*.3);
     G.targets.push({x,y,x0:x,r:bomb?r*1.1:r,gold,bomb,pts:bomb?-3:gold?3:1,born:now,life:life*1000,vy,sway:r*(.25+Math.random()*.35),ph:Math.random()*6.28,
       col:bomb?'#1c1c22':gold?'#ffc21a':BALLOON_COLORS[Math.floor(Math.random()*BALLOON_COLORS.length)]});
+    G.deckIdx++;
     return;
   }
 }
@@ -675,7 +692,7 @@ requestAnimationFrame(frame);
 /* ---------- 흐름 ---------- */
 function allHidden(){['ovSetup','ovReady','ovCount','ovTurn','ovFinal'].forEach(id=>show(id,false))}
 function goReady(){
-  G.phase='ready';{const b=PE.bestOf(G.scores.flatMap((a,i)=>a.map((v,r)=>[v,i,r+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'점',true,b?b[2]:null)}G.dbl=false;G.cur=0;G.n1=0;G.n3=0;G.nb=0;G.targets=[];G.left=S.time;
+  G.phase='ready';{const b=PE.bestOf(G.scores.flatMap((a,i)=>a.map((v,r)=>[v,i,r+1])),true);PE.setTarget(b?b[0]:null,b?b[1]:null,v=>v+'점',true,b?b[2]:null)}G.dbl=false;G.cur=0;G.n1=0;G.n3=0;G.nb=0;G.targets=[];G.left=S.time;G.deckIdx=0;
   allHidden();show('ovReady',true);show('hud',true);show('roundTag',true);show('btnHome',true);
   $('readyRound').textContent=`${G.round} / ${S.rounds} 라운드`;
   PE.bigTurn($('readyTeam'),G.team,`${teamName(G.team)} ${PE.playerLabel(G.team,G.round)}`);
@@ -716,7 +733,7 @@ function final(){
   PE.save('balloon','풍선 터트리기',rank);PE.hubButton($('ovFinal').querySelector('.row'));sfx.win();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function newMatch(){PE.begin(G);G.scores=PE.teams.map(()=>[]);G.stats=PE.teams.map(()=>[]);G.fx=[];goReady()}
+function newMatch(){G.matchSeed=(Date.now()&0x7fffffff)|1;PE.begin(G);G.scores=PE.teams.map(()=>[]);G.stats=PE.teams.map(()=>[]);G.fx=[];goReady()}
 function toSetup(){releaseAwake();if(rec)stopRec();if(G.paused)resumeGame();G.phase='setup';G.targets=[];allHidden();show('ovSetup',true);show('hud',false);show('roundTag',false);show('btnHome',false);loadForm()}
 
 let wake=null,nsVid=null;
